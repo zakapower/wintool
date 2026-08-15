@@ -60,6 +60,11 @@
   gap: 0.55rem;
 }
 
+.about__prose li strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .about__prose code {
   font-size: 0.9em;
   padding: 0.1em 0.35em;

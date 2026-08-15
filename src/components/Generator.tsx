@@ -218,7 +218,7 @@ export function Generator() {
           </h1>
           <p className="generator__lead">
             {t(
-              'Настрой блоки слева по якорям, скачай файл и положи в корень установочной флешки Windows.',
+              'Настройте блоки слева по якорям, скачайте файл и положите в корень установочной флешки Windows.',
               'Use the sections on the left, download the file, and put it in the root of your Windows install USB.',
             )}
           </p>

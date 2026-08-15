@@ -26,8 +26,8 @@ export function AboutView() {
           <h2>{t('Что это', 'What this is')}</h2>
           <p>
             {t(
-              'WinTools генерирует файл autounattend.xml для автоустановки Windows 10/11. Собираешь ответы мастера установки в удобном UI и скачиваешь готовый XML на флешку рядом с образом.',
-              'WinTools generates an autounattend.xml answer file for Windows 10/11 setup. Configure options in a simple UI, download the XML, and place it next to the install image on a USB stick.',
+              'WinTools генерирует файл autounattend.xml для автоустановки Windows 10/11. Вы собираете ответы мастера установки в удобном UI и скачиваете готовый XML на флешку рядом с образом.',
+              'WinTools generates an autounattend.xml answer file for Windows 10/11 setup. You configure options in a simple UI, download the XML, and place it next to the install image on a USB stick.',
             )}
           </p>
         </section>
@@ -72,7 +72,7 @@ export function AboutView() {
           <h2>{t('Как пользоваться', 'How to use')}</h2>
           <p>
             {t(
-              'Кратко: пройди блоки на главной, проверь диск и скачай autounattend.xml. Подробный разбор (что нужно для переустановки, как подготовить флешку и что делать при ошибках) во вкладке',
+              'Кратко: пройдите блоки на главной, проверьте диск и скачайте autounattend.xml. Подробный разбор (что нужно для переустановки, как подготовить флешку и что делать при ошибках) во вкладке',
               'In short: go through the home page blocks, check the disk settings, and download autounattend.xml. A full walkthrough (what you need to reinstall, how to prepare the USB, and troubleshooting) is in the',
             )}{' '}
             <Link href="/guide">{t('Инструкция', 'Guide')}</Link>.

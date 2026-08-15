@@ -25,8 +25,8 @@ export function GuideView() {
           <ul>
             <li>
               {t(
-                'Флешка от 8 ГБ (лучше 16+), все данные на ней будут стёрты',
-                'USB stick 8 GB+ (16+ preferred); it will be wiped',
+                'Флешка от 8 ГБ (лучше 16+). Все данные на ней будут стёрты.',
+                'USB stick 8 GB+ (16+ preferred). Everything on it will be wiped.',
               )}
             </li>
             <li>
@@ -41,6 +41,7 @@ export function GuideView() {
               >
                 massgrave.dev
               </a>
+              .
             </li>
             <li>
               {t('Программа записи:', 'Writer tool:')}{' '}
@@ -67,11 +68,12 @@ export function GuideView() {
               >
                 Media Creation Tool
               </a>
+              .
             </li>
             <li>
               {t(
-                'ПК с UEFI (современные платы; Legacy/CSM лучше выключить)',
-                'A UEFI PC (modern boards; prefer disabling Legacy/CSM)',
+                'ПК с UEFI. На современных платах Legacy/CSM лучше выключить.',
+                'A UEFI PC. On modern boards, Legacy/CSM is better disabled.',
               )}
             </li>
             <li>
@@ -80,6 +82,7 @@ export function GuideView() {
                 'An autounattend.xml from',
               )}{' '}
               <Link href="/">{t('генератора WinTools', 'the WinTools generator')}</Link>
+              .
             </li>
           </ul>
         </section>
@@ -89,20 +92,20 @@ export function GuideView() {
           <ol>
             <li>
               {t(
-                'Запиши ISO на флешку (в Rufus обычно GPT + UEFI).',
-                'Write the ISO to the USB (in Rufus usually GPT + UEFI).',
+                'Запишите ISO на флешку. В Rufus обычно выбирают GPT и UEFI.',
+                'Write the ISO to the USB. In Rufus, GPT and UEFI are the usual choices.',
               )}
             </li>
             <li>
               {t(
-                'Скачай autounattend.xml на главной странице WinTools.',
+                'Скачайте autounattend.xml на главной странице WinTools.',
                 'Download autounattend.xml from the WinTools home page.',
               )}
             </li>
             <li>
               {t(
-                'Положи файл в корень флешки рядом с setup.exe. Имя файла должно быть',
-                'Put the file in the USB root next to setup.exe. The file name must be',
+                'Положите файл в корень флешки рядом с setup.exe. Имя файла должно быть',
+                'Place the file in the USB root next to setup.exe. The file name must be',
               )}{' '}
               <code>autounattend.xml</code>.
             </li>
@@ -114,19 +117,19 @@ export function GuideView() {
           <ol>
             <li>
               {t(
-                'Вставь флешку, перезагрузи ПК и открой Boot Menu (часто F12, Esc, F10 или F2, зависит от производителя).',
-                'Insert the USB, reboot, and open the Boot Menu (often F12, Esc, F10, or F2, depending on the vendor).',
+                'Вставьте флешку, перезагрузите ПК и откройте Boot Menu. Клавиша зависит от производителя ноутбука или материнской платы (часто F12, Esc, F10 или F2), а не от видеокарты.',
+                'Insert the USB, restart the PC, and open the Boot Menu. The key depends on the laptop or motherboard maker (often F12, Esc, F10, or F2), not the graphics card.',
               )}
             </li>
             <li>
               {t(
-                'Выбери флешку в режиме UEFI (не «USB Legacy»).',
-                'Pick the USB in UEFI mode (not “USB Legacy”).',
+                'Выберите флешку в режиме UEFI, не «USB Legacy».',
+                'Select the USB in UEFI mode, not “USB Legacy”.',
               )}
             </li>
             <li>
               {t(
-                'Если Secure Boot мешает, временно отключи его в BIOS или используй подписанный официальный образ.',
+                'Если Secure Boot мешает, временно отключите его в BIOS или используйте подписанный официальный образ.',
                 'If Secure Boot blocks boot, temporarily disable it in BIOS or use a signed official image.',
               )}
             </li>
@@ -137,21 +140,21 @@ export function GuideView() {
           <h2>{t('Что будет при установке', 'What happens during setup')}</h2>
           <p>
             {t(
-              'Windows Setup подхватит autounattend.xml и применит язык, ключ, пользователя, разметку диска и т.д. без лишних вопросов, в пределах того, что ты отметил в генераторе.',
-              'Windows Setup picks up autounattend.xml and applies language, key, user, disk layout, and so on, within what you configured in the generator.',
+              'Windows Setup подхватит autounattend.xml и применит язык, ключ, пользователя, разметку диска и другие параметры без лишних вопросов, в пределах того, что вы отметили в генераторе.',
+              'Windows Setup picks up autounattend.xml and applies language, key, user, disk layout, and other options without extra prompts, within what you configured in the generator.',
             )}
           </p>
           <ul>
             <li>
               {t(
-                'Режим «раздел вручную»: диск выбираешь сам в Setup.',
-                '“Pick partition in Setup”: you choose the disk yourself.',
+                'Режим «раздел вручную»: диск выбираете сами в Setup.',
+                '“Pick partition in Setup”: you choose the disk yourself in Setup.',
               )}
             </li>
             <li>
               {t(
-                'Режим wipe Disk 0: диск 0 будет очищен и размечен автоматически. Проверь, что это нужный диск.',
-                'Wipe Disk 0: disk 0 will be erased and partitioned automatically. Make sure it is the right disk.',
+                'Режим wipe Disk 0: диск 0 будет очищен и размечен автоматически. Убедитесь, что это нужный диск.',
+                'Wipe Disk 0: disk 0 will be erased and partitioned automatically. Make sure it is the correct disk.',
               )}
             </li>
           </ul>
@@ -161,8 +164,8 @@ export function GuideView() {
           <h2>{t('После установки', 'After install')}</h2>
           <p>
             {t(
-              'При первом входе выполнятся команды из файла: удаление выбранных AppX и твики (панель задач, проводник и т.п.). Это может занять несколько минут, не выключай ПК сразу.',
-              'On first logon the file’s commands run: removing selected AppX apps and applying tweaks (taskbar, Explorer, etc.). This can take a few minutes, so don’t power off right away.',
+              'При первом входе выполнятся команды из файла: удаление выбранных AppX и твики (панель задач, проводник и т.п.). Это может занять несколько минут. Не выключайте ПК сразу.',
+              'On first logon the file’s commands run: removing selected AppX apps and applying tweaks (taskbar, Explorer, and so on). This can take a few minutes. Do not power off the PC right away.',
             )}
           </p>
         </section>
@@ -171,27 +174,31 @@ export function GuideView() {
           <h2>{t('Частые проблемы', 'Common issues')}</h2>
           <ul>
             <li>
+              <strong>{t('XML не сработал.', 'XML did not apply.')}</strong>{' '}
               {t(
-                'XML не сработал: файл не в корне, другое имя или флешка без setup.exe (неполный образ).',
-                'XML ignored: not in the root, wrong name, or USB without setup.exe (incomplete image).',
+                'Файл не в корне, другое имя или на флешке нет setup.exe (неполный образ).',
+                'The file is not in the root, has another name, or the USB has no setup.exe (incomplete image).',
               )}
             </li>
             <li>
+              <strong>{t('Не загружается с флешки.', 'Will not boot from USB.')}</strong>{' '}
               {t(
-                'Не грузится с флешки: выбери UEFI-запись, другой порт USB, отключи Fast Boot.',
-                'Won’t boot from USB: use UEFI write mode, try another USB port, disable Fast Boot.',
+                'Выберите запись в режиме UEFI, попробуйте другой порт USB, отключите Fast Boot.',
+                'Use UEFI write mode, try another USB port, and disable Fast Boot.',
               )}
             </li>
             <li>
+              <strong>{t('Ошибка редакции или ключа.', 'Edition or key error.')}</strong>{' '}
               {t(
-                'Ошибка редакции/ключа: сверь редакцию в генераторе с ISO (Home/Pro/Enterprise).',
-                'Edition/key error: match the generator edition to your ISO (Home/Pro/Enterprise).',
+                'Сверьте редакцию в генераторе с ISO (Home, Pro, Enterprise).',
+                'Match the generator edition to your ISO (Home, Pro, Enterprise).',
               )}
             </li>
             <li>
+              <strong>{t('Стёрт не тот диск.', 'Wrong disk was wiped.')}</strong>{' '}
               {t(
-                'Стерли не тот диск: при wipe Disk 0 всегда проверяй номер диска заранее.',
-                'Wrong disk wiped: with wipe Disk 0 always verify the disk number first.',
+                'При wipe Disk 0 заранее проверяйте номер диска.',
+                'With wipe Disk 0, verify the disk number in advance.',
               )}
             </li>
           </ul>
