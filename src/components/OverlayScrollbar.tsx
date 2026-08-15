@@ -11,7 +11,6 @@ const SIZE_EPS = 8
 
 export function OverlayScrollbar() {
   const [needed, setNeeded] = useState(false)
-  const [active, setActive] = useState(false)
   const railRef = useRef<HTMLDivElement>(null)
   const thumbRef = useRef<HTMLButtonElement>(null)
   const hideTimer = useRef(0)
@@ -35,6 +34,12 @@ export function OverlayScrollbar() {
 
   useEffect(() => {
     const root = document.documentElement
+
+    function setActiveClass(on: boolean) {
+      const rail = railRef.current
+      if (!rail) return
+      rail.classList.toggle('overlay-scrollbar--active', on)
+    }
 
     function applyThumb(top: number, height: number) {
       const thumb = thumbRef.current
@@ -75,13 +80,12 @@ export function OverlayScrollbar() {
       if (!canScroll) {
         if (activeRef.current) {
           activeRef.current = false
-          setActive(false)
+          setActiveClass(false)
         }
         return
       }
 
-      const railH =
-        railRef.current?.clientHeight || Math.max(0, view - h)
+      const railH = railRef.current?.clientHeight || Math.max(0, view - h)
       const track = Math.max(0, railH - ARROW * 2)
       const ratio = view / total
       const rawHeight = Math.max(MIN_THUMB, Math.round(track * ratio))
@@ -101,7 +105,6 @@ export function OverlayScrollbar() {
       applyThumb(metrics.current.thumbTop, height)
     }
 
-    /** Cheap path: only move thumb while scrolling. */
     function syncThumb() {
       const { view, total, thumbHeight, track } = metrics.current
       if (total <= view) return
@@ -121,7 +124,7 @@ export function OverlayScrollbar() {
         hideTimer.current = 0
         if (!drag.current && !hovering.current) {
           activeRef.current = false
-          setActive(false)
+          setActiveClass(false)
         }
       }, HIDE_DELAY_MS)
     }
@@ -129,7 +132,7 @@ export function OverlayScrollbar() {
     function show() {
       if (!activeRef.current) {
         activeRef.current = true
-        setActive(true)
+        setActiveClass(true)
       }
       scheduleHide()
     }
@@ -138,10 +141,7 @@ export function OverlayScrollbar() {
       if (raf.current) return
       raf.current = window.requestAnimationFrame(() => {
         raf.current = 0
-        if (drag.current) {
-          // Drag already positions the thumb; skip work.
-          return
-        }
+        if (drag.current) return
         syncThumb()
         show()
       })
@@ -167,7 +167,7 @@ export function OverlayScrollbar() {
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onResize)
+    window.addEventListener('resize', onResize, { passive: true })
     const ro = new ResizeObserver(onResize)
     ro.observe(document.documentElement)
 
@@ -231,7 +231,7 @@ export function OverlayScrollbar() {
       hideTimer.current = window.setTimeout(() => {
         if (!hovering.current) {
           activeRef.current = false
-          setActive(false)
+          railRef.current?.classList.remove('overlay-scrollbar--active')
         }
       }, HIDE_DELAY_MS)
     }
@@ -251,7 +251,7 @@ export function OverlayScrollbar() {
     document.documentElement.scrollBy({ top: delta, behavior: 'auto' })
     if (!activeRef.current) {
       activeRef.current = true
-      setActive(true)
+      railRef.current?.classList.add('overlay-scrollbar--active')
     }
   }
 
@@ -271,7 +271,7 @@ export function OverlayScrollbar() {
     hideTimer.current = window.setTimeout(() => {
       if (!hovering.current && !drag.current) {
         activeRef.current = false
-        setActive(false)
+        railRef.current?.classList.remove('overlay-scrollbar--active')
       }
     }, HIDE_DELAY_MS)
   }
@@ -281,16 +281,12 @@ export function OverlayScrollbar() {
   return (
     <div
       ref={railRef}
-      className={
-        active
-          ? 'overlay-scrollbar overlay-scrollbar--active'
-          : 'overlay-scrollbar'
-      }
+      className="overlay-scrollbar"
       aria-hidden="true"
       onPointerEnter={() => {
         hovering.current = true
         activeRef.current = true
-        setActive(true)
+        railRef.current?.classList.add('overlay-scrollbar--active')
         window.clearTimeout(hideTimer.current)
       }}
       onPointerLeave={() => {
@@ -299,7 +295,7 @@ export function OverlayScrollbar() {
         window.clearTimeout(hideTimer.current)
         hideTimer.current = window.setTimeout(() => {
           activeRef.current = false
-          setActive(false)
+          railRef.current?.classList.remove('overlay-scrollbar--active')
         }, HIDE_DELAY_MS)
       }}
     >
@@ -327,7 +323,7 @@ export function OverlayScrollbar() {
           }
           document.body.classList.add('is-overlay-dragging')
           activeRef.current = true
-          setActive(true)
+          railRef.current?.classList.add('overlay-scrollbar--active')
           window.clearTimeout(hideTimer.current)
           e.currentTarget.setPointerCapture(e.pointerId)
         }}

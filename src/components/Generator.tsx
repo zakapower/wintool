@@ -8,15 +8,32 @@ import { validateConfig } from '@/lib/buildUnattendXml'
 import { parseUnattendXml } from '@/lib/parseUnattendXml'
 import {
   APP_CATALOG,
-  NAV_SECTIONS,
   type KeepAppId,
+  type InstallAppId,
   type UnattendConfig,
 } from '@/lib/types'
+import { INSTALL_APP_CATALOG } from '@/lib/installApps'
+import {
+  INSTALL_APP_CATEGORIES,
+  installAppCategory,
+  type InstallAppCategoryId,
+} from '@/lib/installAppCategories'
+import {
+  SYSTEM_APP_CATEGORIES,
+  systemAppCategory,
+  type SystemAppCategoryId,
+} from '@/lib/systemAppCategories'
 import { FieldSelect } from './FieldSelect'
-import { SideNav, useActiveSection } from './SideNav'
+import { DeferredTextInput } from './DeferredField'
+import { TruncTipText } from './TruncTipText'
+import { SideNav } from './SideNav'
+import {
+  DEFAULT_VOLUMES,
+  MAX_VOLUMES,
+  MIN_VOLUMES,
+  nextVolumeLetter,
+} from '@/lib/diskVolumes'
 import './Generator.css'
-
-const SECTION_IDS = NAV_SECTIONS.map((s) => s.id)
 
 export function Generator() {
   const { lang, t } = useApp()
@@ -25,8 +42,11 @@ export function Generator() {
   const [error, setError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [importUnsupported, setImportUnsupported] = useState<string[]>([])
+  const [systemCat, setSystemCat] = useState<SystemAppCategoryId>('all')
+  const [installCat, setInstallCat] = useState<InstallAppCategoryId>('all')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [activeId, setActiveId] = useActiveSection(SECTION_IDS)
+  const [flashId, setFlashId] = useState<string | null>(null)
+  const flashTimer = useRef<number | null>(null)
   const clientErrors = useMemo(() => validateConfig(cfg, lang), [cfg, lang])
 
   const languageOptions = [
@@ -57,10 +77,62 @@ export function Generator() {
     },
   ]
 
+  const keyboardOptions = [
+    { value: 'ru', label: t('Русская', 'Russian') },
+    { value: 'en', label: t('English', 'English') },
+  ]
+
+  const secondaryKeyboardOptions = [
+    { value: '', label: t('Нет', 'None') },
+    ...keyboardOptions,
+  ]
+
   function patch<K extends keyof UnattendConfig>(key: K, value: UnattendConfig[K]) {
     setCfg((prev) => ({ ...prev, [key]: value }))
     setError(null)
   }
+
+  function setKeyboardPrimary(value: string) {
+    const primary = value === 'en' ? 'en' : 'ru'
+    setCfg((prev) => {
+      const second = prev.keyboards[1]
+      const next: Array<'ru' | 'en'> = [primary]
+      if (second && second !== primary) next.push(second)
+      return { ...prev, keyboards: next }
+    })
+    setError(null)
+  }
+
+  function setKeyboardSecondary(value: string) {
+    setCfg((prev) => {
+      const primary = prev.keyboards[0] ?? 'ru'
+      if (!value || value === primary) {
+        return { ...prev, keyboards: [primary] }
+      }
+      return {
+        ...prev,
+        keyboards: [primary, value === 'en' ? 'en' : 'ru'],
+      }
+    })
+    setError(null)
+  }
+
+  const systemAppsInCat = useMemo(
+    () =>
+      systemCat === 'all'
+        ? APP_CATALOG
+        : APP_CATALOG.filter((a) => systemAppCategory(a.id) === systemCat),
+    [systemCat],
+  )
+  const installAppsInCat = useMemo(
+    () =>
+      installCat === 'all'
+        ? INSTALL_APP_CATALOG
+        : INSTALL_APP_CATALOG.filter(
+            (a) => installAppCategory(a.id) === installCat,
+          ),
+    [installCat],
+  )
 
   function toggleKeep(id: KeepAppId) {
     const locked = APP_CATALOG.find((a) => a.id === id)?.locked
@@ -76,53 +148,78 @@ export function Generator() {
     })
   }
 
-  function keepAllApps() {
-    setCfg((prev) => ({
-      ...prev,
-      keepApps: APP_CATALOG.map((a) => a.id),
-    }))
-  }
-
-  function keepEssentialApps() {
-    setCfg((prev) => ({
-      ...prev,
-      keepApps: APP_CATALOG.filter((a) => a.defaultKeep || a.locked).map(
-        (a) => a.id,
-      ),
-    }))
-  }
-
-  function clearAllApps() {
-    setCfg((prev) => ({
-      ...prev,
-      keepApps: APP_CATALOG.filter((a) => a.locked).map((a) => a.id),
-    }))
-  }
-
-  function toggleKeyboard(k: 'ru' | 'en') {
+  function toggleInstall(id: InstallAppId) {
     setCfg((prev) => {
-      const has = prev.keyboards.includes(k)
-      if (has && prev.keyboards.length === 1) return prev
+      const has = prev.installApps.includes(id)
       return {
         ...prev,
-        keyboards: has
-          ? prev.keyboards.filter((x) => x !== k)
-          : [...prev.keyboards, k],
+        installApps: has
+          ? prev.installApps.filter((x) => x !== id)
+          : [...prev.installApps, id],
       }
     })
+  }
+
+  function keepAllInSystemCat() {
+    const ids = systemAppsInCat.map((a) => a.id)
+    setCfg((prev) => ({
+      ...prev,
+      keepApps: [...new Set([...prev.keepApps, ...ids])],
+    }))
+  }
+
+  function clearSystemCat() {
+    const ids = new Set(systemAppsInCat.map((a) => a.id))
+    setCfg((prev) => ({
+      ...prev,
+      keepApps: prev.keepApps.filter((id) => {
+        if (!ids.has(id)) return true
+        return !!APP_CATALOG.find((a) => a.id === id)?.locked
+      }),
+    }))
+  }
+
+  function installAllInCat() {
+    const ids = installAppsInCat.map((a) => a.id)
+    setCfg((prev) => ({
+      ...prev,
+      installApps: [...new Set([...prev.installApps, ...ids])],
+    }))
+  }
+
+  function clearInstallCat() {
+    const ids = new Set(installAppsInCat.map((a) => a.id))
+    setCfg((prev) => ({
+      ...prev,
+      installApps: prev.installApps.filter((id) => !ids.has(id)),
+    }))
   }
 
   function goToError(targetId: string) {
     const el = document.getElementById(targetId)
     if (!el) return
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+    if (flashTimer.current != null) window.clearTimeout(flashTimer.current)
+    setFlashId(targetId)
+    flashTimer.current = window.setTimeout(() => {
+      setFlashId(null)
+      flashTimer.current = null
+    }, 2200)
+
     const focusable =
-      el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+      el instanceof HTMLInputElement ||
+      el instanceof HTMLTextAreaElement ||
+      el instanceof HTMLButtonElement
         ? el
         : el.querySelector<HTMLElement>(
-            'input:not([type="hidden"]), textarea, button, [tabindex]:not([tabindex="-1"])',
+            'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), .select__trigger, button:not([disabled]), [tabindex]:not([tabindex="-1"])',
           )
     window.setTimeout(() => focusable?.focus({ preventScroll: true }), 350)
+  }
+
+  function flashClass(id: string) {
+    return flashId === id ? ' field--flash' : ''
   }
 
   function resetAll() {
@@ -130,11 +227,61 @@ export function Generator() {
       ...defaultConfig,
       keyboards: [...defaultConfig.keyboards],
       keepApps: [...defaultConfig.keepApps],
+      installApps: [...defaultConfig.installApps],
+      volumes: DEFAULT_VOLUMES.map((v) => ({ ...v })),
     })
     setError(null)
     setImportError(null)
     setImportUnsupported([])
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function updateVolume(
+    index: number,
+    patchVol: Partial<(typeof cfg.volumes)[number]>,
+  ) {
+    setCfg((prev) => {
+      const volumes = prev.volumes.map((v, i) =>
+        i === index ? { ...v, ...patchVol } : v,
+      )
+      if (volumes[0]) volumes[0] = { ...volumes[0], letter: 'C' }
+      const last = volumes.length - 1
+      if (last >= 0) volumes[last] = { ...volumes[last], sizeGb: null }
+      const letters = new Set(volumes.map((v) => v.letter.toUpperCase()))
+      const installDrive = letters.has(prev.installDrive.toUpperCase())
+        ? prev.installDrive
+        : 'C'
+      return { ...prev, volumes, installDrive }
+    })
+    setError(null)
+  }
+
+  function addVolume() {
+    setCfg((prev) => {
+      if (prev.volumes.length >= MAX_VOLUMES) return prev
+      const letter = nextVolumeLetter(prev.volumes)
+      const volumes = [...prev.volumes]
+      const last = volumes.pop()!
+      volumes.push({ letter, label: letter, sizeGb: 50 }, { ...last, sizeGb: null })
+      return { ...prev, volumes }
+    })
+    setError(null)
+  }
+
+  function removeVolume(index: number) {
+    setCfg((prev) => {
+      if (prev.volumes.length <= MIN_VOLUMES || index === 0) return prev
+      const volumes = prev.volumes.filter((_, i) => i !== index)
+      volumes[0] = { ...volumes[0], letter: 'C' }
+      const last = volumes.length - 1
+      volumes[last] = { ...volumes[last], sizeGb: null }
+      const letters = new Set(volumes.map((v) => v.letter.toUpperCase()))
+      const installDrive = letters.has(prev.installDrive.toUpperCase())
+        ? prev.installDrive
+        : 'C'
+      return { ...prev, volumes, installDrive }
+    })
+    setError(null)
   }
 
   async function onImportFile(file: File | undefined) {
@@ -155,6 +302,8 @@ export function Generator() {
         ...result.config,
         keyboards: [...result.config.keyboards],
         keepApps: [...result.config.keepApps],
+        installApps: [...result.config.installApps],
+        volumes: result.config.volumes.map((v) => ({ ...v })),
       })
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch {
@@ -208,7 +357,7 @@ export function Generator() {
   return (
     <div className="generator">
       <aside className="generator__aside">
-        <SideNav activeId={activeId} onNavigate={setActiveId} />
+        <SideNav />
       </aside>
 
       <div className="generator__main">
@@ -276,29 +425,28 @@ export function Generator() {
               onChange={(v) => patch('language', v as UnattendConfig['language'])}
             />
           </div>
-          <fieldset className="field" id="field-keyboards">
-            <legend className="field__label">{t('Раскладки', 'Keyboards')}</legend>
-            <div className="choices choices--row">
-              <label className="choice">
-                <input
-                  type="checkbox"
-                  checked={cfg.keyboards.includes('ru')}
-                  onChange={() => toggleKeyboard('ru')}
-                />
-                <span className="choice__mark" aria-hidden />
-                <span className="choice__text">{t('Русская', 'Russian')}</span>
-              </label>
-              <label className="choice">
-                <input
-                  type="checkbox"
-                  checked={cfg.keyboards.includes('en')}
-                  onChange={() => toggleKeyboard('en')}
-                />
-                <span className="choice__mark" aria-hidden />
-                <span className="choice__text">English</span>
-              </label>
-            </div>
-          </fieldset>
+          <div className={`field${flashClass('field-keyboards')}`} id="field-keyboards">
+            <span className="field__label">
+              {t('Раскладка 1', 'Layout 1')}
+            </span>
+            <FieldSelect
+              aria-label={t('Раскладка 1', 'Layout 1')}
+              value={cfg.keyboards[0] ?? 'ru'}
+              options={keyboardOptions}
+              onChange={setKeyboardPrimary}
+            />
+          </div>
+          <div className="field">
+            <span className="field__label">
+              {t('Раскладка 2', 'Layout 2')}
+            </span>
+            <FieldSelect
+              aria-label={t('Раскладка 2', 'Layout 2')}
+              value={cfg.keyboards[1] ?? ''}
+              options={secondaryKeyboardOptions}
+              onChange={setKeyboardSecondary}
+            />
+          </div>
           <div className="field">
             <span className="field__label">{t('Часовой пояс', 'Time zone')}</span>
             <FieldSelect
@@ -321,7 +469,7 @@ export function Generator() {
               onChange={(v) => patch('edition', v as UnattendConfig['edition'])}
             />
           </div>
-          <fieldset className="field">
+          <fieldset className={`field${flashClass('field-product-key')}`}>
             <legend className="field__label">{t('Ключ продукта', 'Product key')}</legend>
             <div className="choices">
               <label className="choice">
@@ -363,13 +511,12 @@ export function Generator() {
               </label>
             </div>
             {cfg.productKeyMode === 'custom' && (
-              <input
+              <DeferredTextInput
                 id="field-product-key"
                 className="field__control"
-                type="text"
                 placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
                 value={cfg.productKeyCustom}
-                onChange={(e) => patch('productKeyCustom', e.target.value)}
+                onCommit={(v) => patch('productKeyCustom', v)}
                 autoComplete="off"
               />
             )}
@@ -378,12 +525,6 @@ export function Generator() {
 
         <section id="disk" className="block">
           <h2 className="block__title">{t('Диск', 'Disk')}</h2>
-          <div className="warn" role="status">
-            {t(
-              'Режим «стереть Диск 0» уничтожит все данные на первом диске. Проверь, что это нужный SSD/HDD.',
-              '“Wipe Disk 0” will erase all data on the first disk. Make sure it is the intended SSD/HDD.',
-            )}
-          </div>
           <fieldset className="field">
             <legend className="field__label">{t('Режим', 'Mode')}</legend>
             <div className="choices">
@@ -421,36 +562,112 @@ export function Generator() {
           </fieldset>
           {cfg.diskMode === 'wipe0' && (
             <>
-              <label className="field">
-                <span className="field__label">{t('Размер C: (ГБ)', 'C: size (GB)')}</span>
-                <input
-                  id="field-windows-gb"
-                  className="field__control"
-                  type="number"
-                  min={40}
-                  max={2000}
-                  value={cfg.windowsGb}
-                  onChange={(e) => patch('windowsGb', Number(e.target.value) || 0)}
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">{t('Метка C:', 'C: label')}</span>
-                <input
-                  className="field__control"
-                  value={cfg.labelC}
-                  onChange={(e) => patch('labelC', e.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">
-                  {t('Метка D: (остаток)', 'D: label (remaining)')}
-                </span>
-                <input
-                  className="field__control"
-                  value={cfg.labelD}
-                  onChange={(e) => patch('labelD', e.target.value)}
-                />
-              </label>
+              <div id="field-volumes" className={`field${flashClass('field-volumes')}`}>
+                <div className="field__label">
+                  {t('Разделы (2–5)', 'Volumes (2–5)')}
+                </div>
+                <div className="volume-list">
+                  {cfg.volumes.map((vol, index) => {
+                    const isLast = index === cfg.volumes.length - 1
+                    const isFirst = index === 0
+                    return (
+                      <div key={`${vol.letter}-${index}`} className="volume-row">
+                        <label className="volume-row__letter">
+                          <span className="field__label">
+                            {t('Буква', 'Letter')}
+                          </span>
+                          {isFirst ? (
+                            <input
+                              className="field__control"
+                              value="C"
+                              disabled
+                              readOnly
+                            />
+                          ) : (
+                            <DeferredTextInput
+                              className="field__control"
+                              value={vol.letter}
+                              maxLength={1}
+                              onCommit={(v) =>
+                                updateVolume(index, {
+                                  letter:
+                                    v.toUpperCase().slice(0, 1) || vol.letter,
+                                })
+                              }
+                            />
+                          )}
+                        </label>
+                        <label className="volume-row__label">
+                          <span className="field__label">
+                            {t('Метка', 'Label')}
+                          </span>
+                          <DeferredTextInput
+                            className="field__control"
+                            value={vol.label}
+                            onCommit={(v) => updateVolume(index, { label: v })}
+                          />
+                        </label>
+                        <label className="volume-row__size">
+                          <span className="field__label">
+                            {isLast
+                              ? t('Размер', 'Size')
+                              : t('Размер (ГБ)', 'Size (GB)')}
+                          </span>
+                          {isLast ? (
+                            <input
+                              className="field__control"
+                              value={t('остаток', 'remainder')}
+                              disabled
+                              readOnly
+                            />
+                          ) : (
+                            <DeferredTextInput
+                              className="field__control"
+                              inputMode="numeric"
+                              value={
+                                vol.sizeGb == null ? '' : String(vol.sizeGb)
+                              }
+                              onCommit={(v) => {
+                                const trimmed = v.trim()
+                                if (!trimmed) {
+                                  updateVolume(index, { sizeGb: null })
+                                  return
+                                }
+                                const n = Number(trimmed)
+                                updateVolume(index, {
+                                  sizeGb: Number.isFinite(n) ? n : null,
+                                })
+                              }}
+                            />
+                          )}
+                        </label>
+                        <div className="volume-row__actions">
+                          {!isFirst && cfg.volumes.length > MIN_VOLUMES ? (
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              onClick={() => removeVolume(index)}
+                            >
+                              {t('Убрать', 'Remove')}
+                            </button>
+                          ) : (
+                            <span className="volume-row__spacer" aria-hidden />
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {cfg.volumes.length < MAX_VOLUMES && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost volume-list__add"
+                    onClick={addVolume}
+                  >
+                    {t('Добавить раздел', 'Add volume')}
+                  </button>
+                )}
+              </div>
             </>
           )}
         </section>
@@ -459,13 +676,13 @@ export function Generator() {
           <h2 className="block__title">
             {t('Компьютер и пользователь', 'Computer & user')}
           </h2>
-          <label className="field">
+          <label className={`field${flashClass('field-computer-name')}`}>
             <span className="field__label">{t('Имя компьютера', 'Computer name')}</span>
-            <input
+            <DeferredTextInput
               id="field-computer-name"
               className="field__control"
               value={cfg.computerName}
-              onChange={(e) => patch('computerName', e.target.value)}
+              onCommit={(v) => patch('computerName', v)}
               maxLength={15}
               autoComplete="off"
               data-1p-ignore
@@ -473,15 +690,15 @@ export function Generator() {
               suppressHydrationWarning
             />
           </label>
-          <label className="field">
+          <label className={`field${flashClass('field-user-name')}`}>
             <span className="field__label">
               {t('Локальный пользователь', 'Local user')}
             </span>
-            <input
+            <DeferredTextInput
               id="field-user-name"
               className="field__control"
               value={cfg.userName}
-              onChange={(e) => patch('userName', e.target.value)}
+              onCommit={(v) => patch('userName', v)}
               autoComplete="off"
               data-1p-ignore
               data-lpignore="true"
@@ -492,11 +709,11 @@ export function Generator() {
             <span className="field__label">
               {t('Пароль (можно пустой)', 'Password (can be empty)')}
             </span>
-            <input
+            <DeferredTextInput
               className="field__control"
               type="password"
               value={cfg.password}
-              onChange={(e) => patch('password', e.target.value)}
+              onCommit={(v) => patch('password', v)}
               autoComplete="off"
               name="wintool-local-password"
               data-1p-ignore
@@ -504,43 +721,42 @@ export function Generator() {
               suppressHydrationWarning
             />
           </label>
-          <label className="choice">
-            <input
-              type="checkbox"
-              checked={cfg.autoLogon}
-              onChange={(e) => patch('autoLogon', e.target.checked)}
-            />
-            <span className="choice__mark" aria-hidden />
-            <span className="choice__text">
-              {t(
-                'Автоматический вход при первом запуске',
-                'Automatic logon on first boot',
-              )}
-            </span>
-          </label>
         </section>
 
-        <section id="apps" className="block">
-          <h2 className="block__title">{t('Приложения', 'Apps')}</h2>
-          <p className="block__hint">
-            {t(
-              'Отметь, что оставить. Снятые пункты удалятся при первом входе (AppX). Список: встроенные приложения Microsoft/Windows и типичный OEM. Edge можно снять.',
-              'Check what to keep. Unchecked apps are removed on first logon (AppX). Catalog: Microsoft/Windows inbox apps and common OEM. Edge can be removed.',
-            )}
-          </p>
+        <section id="system-apps" className="block">
+          <h2 className="block__title">
+            {t('Системные приложения', 'System apps')}
+          </h2>
           <div className="apps-toolbar">
-            <button type="button" className="btn btn--ghost" onClick={keepEssentialApps}>
-              {t('Базовый набор', 'Basic set')}
-            </button>
-            <button type="button" className="btn btn--ghost" onClick={keepAllApps}>
+            <button type="button" className="btn btn--ghost" onClick={keepAllInSystemCat}>
               {t('Добавить все', 'Select all')}
             </button>
-            <button type="button" className="btn btn--ghost" onClick={clearAllApps}>
+            <button type="button" className="btn btn--ghost" onClick={clearSystemCat}>
               {t('Убрать все', 'Deselect all')}
             </button>
           </div>
+          <div className="apps-cats" role="tablist" aria-label={t('Категории', 'Categories')}>
+            {SYSTEM_APP_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                role="tab"
+                aria-selected={systemCat === cat.id}
+                className={
+                  systemCat === cat.id
+                    ? 'apps-cats__btn apps-cats__btn--active'
+                    : 'apps-cats__btn'
+                }
+                onClick={() => setSystemCat(cat.id)}
+              >
+                {lang === 'ru' ? cat.ru : cat.en}
+              </button>
+            ))}
+          </div>
           <div className="choices choices--apps">
-            {APP_CATALOG.map((app) => (
+            {systemAppsInCat.map((app) => {
+              const label = lang === 'ru' ? app.labelRu : app.labelEn
+              return (
               <label
                 key={app.id}
                 className={`choice${app.locked ? ' choice--disabled' : ''}`}
@@ -552,11 +768,79 @@ export function Generator() {
                   onChange={() => toggleKeep(app.id)}
                 />
                 <span className="choice__mark" aria-hidden />
-                <span className="choice__text">
-                  {lang === 'ru' ? app.labelRu : app.labelEn}
-                </span>
+                <TruncTipText className="choice__text" text={label} />
               </label>
+              )
+            })}
+          </div>
+        </section>
+
+        <section id="apps" className="block">
+          <h2 className="block__title">{t('Приложения', 'Apps')}</h2>
+          <div className={`field${flashClass('field-install-drive')}`} id="field-install-drive">
+            <span className="field__label">
+              {t('Куда ставить программы', 'Install apps to')}
+            </span>
+            <FieldSelect
+              aria-label={t('Куда ставить программы', 'Install apps to')}
+              value={cfg.installDrive}
+              options={(
+                cfg.diskMode === 'wipe0'
+                  ? cfg.volumes.map((v) => v.letter.toUpperCase())
+                  : ['C', 'D', 'E', 'F', 'G']
+              )
+                .filter((L, i, arr) => /^[A-Z]$/.test(L) && arr.indexOf(L) === i)
+                .map((L) => ({
+                  value: L,
+                  label:
+                    L === 'C'
+                      ? t('C: (путь по умолчанию)', 'C: (default path)')
+                      : t(`${L}:\\Apps`, `${L}:\\Apps`),
+                }))}
+              onChange={(v) => patch('installDrive', v)}
+            />
+          </div>
+          <div className="apps-toolbar">
+            <button type="button" className="btn btn--ghost" onClick={installAllInCat}>
+              {t('Добавить все', 'Select all')}
+            </button>
+            <button type="button" className="btn btn--ghost" onClick={clearInstallCat}>
+              {t('Убрать все', 'Deselect all')}
+            </button>
+          </div>
+          <div className="apps-cats" role="tablist" aria-label={t('Категории', 'Categories')}>
+            {INSTALL_APP_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                role="tab"
+                aria-selected={installCat === cat.id}
+                className={
+                  installCat === cat.id
+                    ? 'apps-cats__btn apps-cats__btn--active'
+                    : 'apps-cats__btn'
+                }
+                onClick={() => setInstallCat(cat.id)}
+              >
+                {lang === 'ru' ? cat.ru : cat.en}
+              </button>
             ))}
+          </div>
+          <div className="choices choices--apps">
+            {installAppsInCat.map((app) => {
+              const label = lang === 'ru' ? app.labelRu : app.labelEn
+              return (
+              <label key={app.id} className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.installApps.includes(app.id)}
+                  onChange={() => toggleInstall(app.id)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <TruncTipText className="choice__text" text={label} />
+              </label>
+              )
+            })}
           </div>
         </section>
 
@@ -820,7 +1104,9 @@ export function Generator() {
               <dt>{t('Раскладки', 'Keyboards')}</dt>
               <dd>
                 {cfg.keyboards
-                  .map((k) => (k === 'ru' ? t('Русская', 'Russian') : 'English'))
+                  .map((k) =>
+                    k === 'ru' ? t('Русская', 'Russian') : t('English', 'English'),
+                  )
                   .join(', ')}
               </dd>
             </div>
@@ -851,8 +1137,20 @@ export function Generator() {
               <dd>
                 {cfg.diskMode === 'wipe0'
                   ? t(
-                      `Стереть Disk 0 → C: ${cfg.windowsGb} ГБ «${cfg.labelC}», D: остаток «${cfg.labelD}»`,
-                      `Wipe Disk 0 → C: ${cfg.windowsGb} GB “${cfg.labelC}”, D: remaining “${cfg.labelD}”`,
+                      `Стереть Disk 0 → ${cfg.volumes
+                        .map((v, i) =>
+                          i === cfg.volumes.length - 1
+                            ? `${v.letter}: остаток «${v.label}»`
+                            : `${v.letter}: ${v.sizeGb ?? '—'} ГБ «${v.label}»`,
+                        )
+                        .join(', ')}`,
+                      `Wipe Disk 0 → ${cfg.volumes
+                        .map((v, i) =>
+                          i === cfg.volumes.length - 1
+                            ? `${v.letter}: remainder “${v.label}”`
+                            : `${v.letter}: ${v.sizeGb ?? '—'} GB “${v.label}”`,
+                        )
+                        .join(', ')}`,
                     )
                   : t('Раздел вручную в Setup', 'Pick partition in Setup')}
               </dd>
@@ -865,16 +1163,14 @@ export function Generator() {
               <dt>{t('Пользователь', 'User')}</dt>
               <dd>
                 {cfg.userName || '—'}
-                {cfg.autoLogon
-                  ? ` · ${t('автологин', 'auto logon')}`
-                  : ` · ${t('без автологина', 'no auto logon')}`}
+                {` · ${t('автологин', 'auto logon')}`}
                 {cfg.password
                   ? ` · ${t('с паролем', 'with password')}`
                   : ` · ${t('без пароля', 'no password')}`}
               </dd>
             </div>
             <div className="summary__row summary__row--apps">
-              <dt>{t('Приложения', 'Apps')}</dt>
+              <dt>{t('Системные приложения', 'System apps')}</dt>
               <dd>
                 {cfg.keepApps.length === 0 ? (
                   t(
@@ -890,6 +1186,24 @@ export function Generator() {
                         </li>
                       ),
                     )}
+                  </ul>
+                )}
+              </dd>
+            </div>
+            <div className="summary__row summary__row--apps">
+              <dt>{t('Приложения', 'Apps')}</dt>
+              <dd>
+                {cfg.installApps.length === 0 ? (
+                  t('Не выбрано', 'None selected')
+                ) : (
+                  <ul className="summary__apps">
+                    {INSTALL_APP_CATALOG.filter((a) =>
+                      cfg.installApps.includes(a.id),
+                    ).map((a) => (
+                      <li key={a.id}>
+                        {lang === 'ru' ? a.labelRu : a.labelEn}
+                      </li>
+                    ))}
                   </ul>
                 )}
               </dd>

@@ -3,6 +3,7 @@ import {
   type KeepAppId,
   type UnattendConfig,
 } from './types.ts'
+import { DEFAULT_VOLUMES } from './diskVolumes.ts'
 
 export const ALL_KEEP_APPS: KeepAppId[] = APP_CATALOG.map((a) => a.id)
 
@@ -19,14 +20,14 @@ export const defaultConfig: UnattendConfig = {
   productKeyMode: 'none',
   productKeyCustom: '',
   diskMode: 'interactive',
-  windowsGb: 150,
-  labelC: 'Windows',
-  labelD: 'Data',
+  volumes: DEFAULT_VOLUMES.map((v) => ({ ...v })),
+  installDrive: 'C',
   computerName: '',
   userName: '',
   password: '',
-  autoLogon: false,
+  autoLogon: true,
   keepApps: [...DEFAULT_KEEP_APPS],
+  installApps: [],
   disableWidgets: false,
   disableConsumerFeatures: false,
   expressPrivacy: 'default',

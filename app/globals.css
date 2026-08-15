@@ -26,10 +26,30 @@
   --on-accent: #0c1a33;
 }
 
+.mark-critical {
+  color: #dc2626;
+  font-weight: 650;
+}
+
+:root[data-theme='dark'] .mark-critical {
+  color: #f87171;
+}
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 html {
@@ -54,13 +74,13 @@ body {
   font-size: 17px;
   line-height: 1.55;
   color: var(--ink);
-  background:
-    radial-gradient(
-      80% 50% at 100% 0%,
-      color-mix(in srgb, var(--wash) 70%, transparent),
-      transparent 60%
-    ),
-    var(--bg);
+  background-color: var(--bg);
+  background-image: radial-gradient(
+    80% 50% at 100% 0%,
+    color-mix(in srgb, var(--wash) 70%, transparent),
+    transparent 60%
+  );
+  background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
 }
 

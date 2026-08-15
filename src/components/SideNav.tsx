@@ -11,10 +11,7 @@ import { useApp } from '@/context/AppContext'
 import { NAV_SECTIONS } from '@/lib/types'
 import './SideNav.css'
 
-type Props = {
-  activeId: string
-  onNavigate?: (id: string) => void
-}
+const DEFAULT_SECTION_IDS = NAV_SECTIONS.map((s) => s.id)
 
 function headerOffset() {
   const raw = getComputedStyle(document.documentElement)
@@ -61,23 +58,32 @@ function smoothScrollTo(el: HTMLElement, duration = 720) {
   })
 }
 
-export function SideNav({ activeId, onNavigate }: Props) {
+type Props = {
+  sectionIds?: readonly string[]
+}
+
+/** Owns scroll-spy state so the heavy generator form does not re-render on scroll. */
+export function SideNav({ sectionIds = DEFAULT_SECTION_IDS }: Props) {
   const { lang, t } = useApp()
+  const [activeId, navigate] = useActiveSection(sectionIds)
   const listRef = useRef<HTMLUListElement>(null)
   const linkRefs = useRef<Map<string, HTMLAnchorElement>>(new Map())
-  const [pill, setPill] = useState({ top: 0, height: 0, ready: false })
+  const pillRef = useRef<HTMLSpanElement>(null)
+  const pillReady = useRef(false)
 
   const syncPill = useCallback(() => {
     const list = listRef.current
+    const pill = pillRef.current
     const link = linkRefs.current.get(activeId)
-    if (!list || !link) return
+    if (!list || !pill || !link) return
     const listRect = list.getBoundingClientRect()
     const linkRect = link.getBoundingClientRect()
-    setPill({
-      top: linkRect.top - listRect.top + list.scrollTop,
-      height: linkRect.height,
-      ready: true,
-    })
+    pill.style.transform = `translateY(${linkRect.top - listRect.top + list.scrollTop}px)`
+    pill.style.height = `${linkRect.height}px`
+    if (!pillReady.current) {
+      pillReady.current = true
+      pill.classList.add('side-nav__pill--ready')
+    }
   }, [activeId])
 
   useLayoutEffect(() => {
@@ -85,7 +91,7 @@ export function SideNav({ activeId, onNavigate }: Props) {
   }, [syncPill, lang])
 
   useEffect(() => {
-    window.addEventListener('resize', syncPill)
+    window.addEventListener('resize', syncPill, { passive: true })
     return () => window.removeEventListener('resize', syncPill)
   }, [syncPill])
 
@@ -93,18 +99,7 @@ export function SideNav({ activeId, onNavigate }: Props) {
     <nav className="side-nav" aria-label={t('Разделы', 'Sections')}>
       <p className="side-nav__title">{t('Разделы', 'Sections')}</p>
       <ul className="side-nav__list" ref={listRef}>
-        <span
-          className={
-            pill.ready
-              ? 'side-nav__pill side-nav__pill--ready'
-              : 'side-nav__pill'
-          }
-          style={{
-            transform: `translateY(${pill.top}px)`,
-            height: pill.height,
-          }}
-          aria-hidden
-        />
+        <span ref={pillRef} className="side-nav__pill" aria-hidden />
         {NAV_SECTIONS.map((s) => (
           <li key={s.id}>
             <a
@@ -122,7 +117,7 @@ export function SideNav({ activeId, onNavigate }: Props) {
                 e.preventDefault()
                 const el = document.getElementById(s.id)
                 if (!el) return
-                onNavigate?.(s.id)
+                navigate(s.id)
                 void smoothScrollTo(el).then(() => {
                   history.replaceState(null, '', `#${s.id}`)
                 })
@@ -142,8 +137,10 @@ export function useActiveSection(ids: readonly string[]) {
   const lockedUntil = useRef(0)
   const lockTarget = useRef<string | null>(null)
   const activeRef = useRef(ids[0] ?? '')
+  const topsRef = useRef<Array<{ id: string; top: number }>>([])
   const raf = useRef(0)
-  const elementsRef = useRef<Array<{ id: string; el: HTMLElement }>>([])
+  const lastCommit = useRef(0)
+  const lastDocHeight = useRef(0)
 
   const navigate = useCallback((id: string) => {
     lockTarget.current = id
@@ -155,59 +152,63 @@ export function useActiveSection(ids: readonly string[]) {
   useEffect(() => {
     if (!ids.length) return
 
-    function cacheElements() {
-      elementsRef.current = ids
+    function cacheTops() {
+      const y = window.scrollY
+      topsRef.current = ids
         .map((id) => {
           const el = document.getElementById(id)
-          return el ? { id, el } : null
+          if (!el) return null
+          return { id, top: el.getBoundingClientRect().top + y }
         })
-        .filter((x): x is { id: string; el: HTMLElement } => Boolean(x))
+        .filter((x): x is { id: string; top: number } => Boolean(x))
+      lastDocHeight.current = document.documentElement.scrollHeight
     }
 
-    function update() {
-      if (lockTarget.current && performance.now() < lockedUntil.current) {
-        return
-      }
-      lockTarget.current = null
-
-      const elements = elementsRef.current
-      if (!elements.length) return
-
+    function pick(): string {
+      const tops = topsRef.current
+      if (!tops.length) return ids[0] ?? ''
       const scrollBottom = window.scrollY + window.innerHeight
       const docHeight = document.documentElement.scrollHeight
-      let next = elements[0].id
-      if (docHeight - scrollBottom < 96) {
-        next = elements[elements.length - 1].id
-      } else {
-        const offset = headerOffset()
-        for (const { id, el } of elements) {
-          if (el.getBoundingClientRect().top - offset <= 1) next = id
-        }
+      if (docHeight - scrollBottom < 96) return tops[tops.length - 1].id
+      const line = window.scrollY + headerOffset()
+      let next = tops[0].id
+      for (const { id, top } of tops) {
+        if (top <= line + 1) next = id
       }
+      return next
+    }
 
-      if (next !== activeRef.current) {
-        activeRef.current = next
-        setActiveId(next)
-      }
+    function update(force = false) {
+      if (lockTarget.current && performance.now() < lockedUntil.current) return
+      lockTarget.current = null
+      const next = pick()
+      if (next === activeRef.current) return
+      const now = performance.now()
+      if (!force && now - lastCommit.current < 100) return
+      lastCommit.current = now
+      activeRef.current = next
+      setActiveId(next)
     }
 
     function onScroll() {
       if (raf.current) return
       raf.current = window.requestAnimationFrame(() => {
         raf.current = 0
+        const height = document.documentElement.scrollHeight
+        if (height !== lastDocHeight.current) cacheTops()
         update()
       })
     }
 
     function onResize() {
-      cacheElements()
-      update()
+      cacheTops()
+      update(true)
     }
 
-    cacheElements()
-    update()
+    cacheTops()
+    update(true)
     window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onResize)
+    window.addEventListener('resize', onResize, { passive: true })
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)

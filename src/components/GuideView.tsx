@@ -5,7 +5,7 @@ import { useApp } from '@/context/AppContext'
 import './About.css'
 
 export function GuideView() {
-  const { t } = useApp()
+  const { t, lang } = useApp()
 
   return (
     <article className="about">
@@ -152,9 +152,68 @@ export function GuideView() {
               )}
             </li>
             <li>
+              {lang === 'ru' ? (
+                <>
+                  Режим wipe Disk 0: диск 0{' '}
+                  <span className="mark-critical">
+                    будет очищен и размечен автоматически
+                  </span>{' '}
+                  (2–5 разделов; последний — остаток).{' '}
+                  <span className="mark-critical">
+                    Убедитесь, что это нужный диск.
+                  </span>
+                </>
+              ) : (
+                <>
+                  Wipe Disk 0: disk 0 will be{' '}
+                  <span className="mark-critical">
+                    erased and partitioned automatically
+                  </span>{' '}
+                  (2–5 volumes; last takes the remainder).{' '}
+                  <span className="mark-critical">
+                    Make sure it is the correct disk.
+                  </span>
+                </>
+              )}
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>{t('Пароль и автологин', 'Password and auto logon')}</h2>
+          <p>
+            {t(
+              'WinTools всегда включает автологин на первый вход, чтобы сразу выполнились команды из файла (удаление AppX, твики, установка программ).',
+              'WinTools always enables auto logon for the first sign-in so the file’s commands run right away (AppX removal, tweaks, app installs).',
+            )}
+          </p>
+          <ul>
+            <li>
+              {lang === 'ru' ? (
+                <>
+                  Пароль из генератора попадает в autounattend.xml на флешке{' '}
+                  <span className="mark-critical">открытым текстом</span>. Кто
+                  откроет файл, сможет его прочитать.
+                </>
+              ) : (
+                <>
+                  The password from the generator is stored{' '}
+                  <span className="mark-critical">in plain text</span> in
+                  autounattend.xml on the USB. Anyone who opens the file can
+                  read it.
+                </>
+              )}
+            </li>
+            <li>
               {t(
-                'Режим wipe Disk 0: диск 0 будет очищен и размечен автоматически. Убедитесь, что это нужный диск.',
-                'Wipe Disk 0: disk 0 will be erased and partitioned automatically. Make sure it is the correct disk.',
+                'Безопаснее оставить пароль пустым, дождаться первого входа и твиков, затем задать пароль уже в Windows.',
+                'Safer approach: leave the password empty, wait for the first logon and tweaks, then set a password in Windows.',
+              )}
+            </li>
+            <li>
+              {t(
+                'Если задаёте пароль в генераторе, не оставляйте флешку без присмотра.',
+                'If you set a password in the generator, do not leave the USB unattended.',
               )}
             </li>
           </ul>
@@ -164,8 +223,18 @@ export function GuideView() {
           <h2>{t('После установки', 'After install')}</h2>
           <p>
             {t(
-              'При первом входе выполнятся команды из файла: удаление выбранных AppX и твики (панель задач, проводник и т.п.). Это может занять несколько минут. Не выключайте ПК сразу.',
-              'On first logon the file’s commands run: removing selected AppX apps and applying tweaks (taskbar, Explorer, and so on). This can take a few minutes. Do not power off the PC right away.',
+              'При первом входе выполнятся команды из файла: удаление выбранных AppX, твики и установка отмеченных программ через winget. Это может занять несколько минут. Не выключайте ПК сразу.',
+              'On first logon the file’s commands run: removing selected AppX apps, applying tweaks, and installing checked programs via winget. This can take a few minutes. Do not power off the PC right away.',
+            )}
+          </p>
+        </section>
+
+        <section>
+          <h2>{t('Программы из каталога', 'Catalog apps')}</h2>
+          <p>
+            {t(
+              'Программы из раздела «Приложения» ставятся через winget автоматически при первом входе. В этот момент хеши и подписи вручную уже не проверить. Отмечайте только то, чему доверяете: пакеты обычно с официальных сайтов, но полной гарантии нет. После установки при желании можно переустановить важные программы с сайта разработчика.',
+              'Apps from the Apps section are installed via winget automatically on first logon. You cannot manually check hashes or signatures at that moment. Only select what you trust: packages usually come from vendor sites, but there is no absolute guarantee. After setup you can reinstall important apps from the vendor’s website if you want.',
             )}
           </p>
         </section>
@@ -196,9 +265,20 @@ export function GuideView() {
             </li>
             <li>
               <strong>{t('Стёрт не тот диск.', 'Wrong disk was wiped.')}</strong>{' '}
-              {t(
-                'При wipe Disk 0 заранее проверяйте номер диска.',
-                'With wipe Disk 0, verify the disk number in advance.',
+              {lang === 'ru' ? (
+                <>
+                  При wipe Disk 0{' '}
+                  <span className="mark-critical">
+                    заранее проверяйте номер диска.
+                  </span>
+                </>
+              ) : (
+                <>
+                  With wipe Disk 0,{' '}
+                  <span className="mark-critical">
+                    verify the disk number in advance.
+                  </span>
+                </>
               )}
             </li>
           </ul>

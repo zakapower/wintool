@@ -55,14 +55,14 @@ export function AboutView() {
             </li>
             <li>
               {t(
-                'Имя ПК, локальный пользователь, автологин',
-                'PC name, local user, and auto logon',
+                'Имя ПК, локальный пользователь (автологин всегда)',
+                'PC name, local user (auto logon always on)',
               )}
             </li>
             <li>
               {t(
-                'Белый список приложений и базовая приватность',
-                'App whitelist and basic privacy tweaks',
+                'Белый список системных AppX и установка программ через winget',
+                'System AppX whitelist and winget app installs',
               )}
             </li>
           </ul>

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { defaultConfig } from './defaults.ts'
 import { buildUnattendXml } from './buildUnattendXml.ts'
 import { parseUnattendXml } from './parseUnattendXml.ts'
+import type { UnattendConfig } from './types.ts'
 
 const sampleConfig = {
   ...defaultConfig,
@@ -11,9 +12,10 @@ const sampleConfig = {
   password: 'Secret1',
   autoLogon: true,
   diskMode: 'wipe0' as const,
-  windowsGb: 120,
-  labelC: 'Win',
-  labelD: 'Files',
+  volumes: [
+    { letter: 'C', label: 'Win', sizeGb: 120 },
+    { letter: 'D', label: 'Files', sizeGb: null },
+  ],
   disableTelemetry: true,
   keepApps: ['edge', 'todos'] as const,
 }
@@ -22,6 +24,7 @@ test('parseUnattendXml round-trips WinTools XML', () => {
   const xml = buildUnattendXml({
     ...sampleConfig,
     keepApps: [...sampleConfig.keepApps],
+    volumes: sampleConfig.volumes.map((v) => ({ ...v })),
   })
   const result = parseUnattendXml(xml, 'ru')
   assert.equal(result.ok, true)
@@ -31,12 +34,46 @@ test('parseUnattendXml round-trips WinTools XML', () => {
   assert.equal(result.config.password, 'Secret1')
   assert.equal(result.config.autoLogon, true)
   assert.equal(result.config.diskMode, 'wipe0')
-  assert.equal(result.config.windowsGb, 120)
-  assert.equal(result.config.labelC, 'Win')
-  assert.equal(result.config.labelD, 'Files')
+  assert.equal(result.config.volumes.length, 2)
+  assert.equal(result.config.volumes[0].letter, 'C')
+  assert.equal(result.config.volumes[0].label, 'Win')
+  assert.equal(result.config.volumes[0].sizeGb, 120)
+  assert.equal(result.config.volumes[1].letter, 'D')
+  assert.equal(result.config.volumes[1].label, 'Files')
+  assert.equal(result.config.volumes[1].sizeGb, null)
   assert.equal(result.config.disableTelemetry, true)
   assert.ok(result.config.keepApps.includes('edge'))
   assert.ok(result.config.keepApps.includes('todos'))
+})
+
+test('parseUnattendXml round-trips three volumes and install drive', () => {
+  const cfg = {
+    ...defaultConfig,
+    computerName: 'PC-THREE',
+    userName: 'Admin',
+    diskMode: 'wipe0' as const,
+    volumes: [
+      { letter: 'C', label: 'Windows', sizeGb: 100 },
+      { letter: 'D', label: 'Games', sizeGb: 200 },
+      { letter: 'E', label: 'Data', sizeGb: null },
+    ],
+    installDrive: 'D',
+    installApps: ['chrome'] as UnattendConfig['installApps'],
+  }
+  const xml = buildUnattendXml({
+    ...cfg,
+    volumes: cfg.volumes.map((v) => ({ ...v })),
+    installApps: [...cfg.installApps],
+  })
+  assert.match(xml, /<Letter>E<\/Letter>/)
+  assert.match(xml, /<Extend>true<\/Extend>/)
+  const result = parseUnattendXml(xml)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.config.volumes.length, 3)
+  assert.equal(result.config.volumes[1].sizeGb, 200)
+  assert.equal(result.config.installDrive, 'D')
+  assert.ok(result.config.installApps.includes('chrome'))
 })
 
 test('parseUnattendXml accepts interactive disk', () => {

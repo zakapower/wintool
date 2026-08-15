@@ -1,5 +1,13 @@
 import type { UnattendConfig } from './types.ts'
 import { BLOAT_PACKAGES } from './bloatPackages.ts'
+import { INSTALL_APP_CATALOG } from './installApps.ts'
+import {
+  MIN_DATA_GB,
+  MIN_VOLUMES,
+  MAX_VOLUMES,
+  MIN_WINDOWS_GB,
+  normalizeVolumes,
+} from './diskVolumes.ts'
 
 const EDITION_NAME: Record<UnattendConfig['edition'], string> = {
   Pro: 'Windows 11 Pro',
@@ -60,59 +68,68 @@ function imageInstallXml(cfg: UnattendConfig): string {
         </OSImage>
       </ImageInstall>`
   }
-  const winMb = Math.max(20, Math.round(cfg.windowsGb)) * 1024
+  const volumes = normalizeVolumes(cfg.volumes)
+  // Partition orders: 1 EFI, 2 MSR, then data volumes starting at 3
+  const createParts: string[] = [
+    `<CreatePartition wcm:action="add">
+              <Order>1</Order>
+              <Type>EFI</Type>
+              <Size>260</Size>
+            </CreatePartition>`,
+    `<CreatePartition wcm:action="add">
+              <Order>2</Order>
+              <Type>MSR</Type>
+              <Size>16</Size>
+            </CreatePartition>`,
+  ]
+  const modifyParts: string[] = [
+    `<ModifyPartition wcm:action="add">
+              <Order>1</Order>
+              <PartitionID>1</PartitionID>
+              <Format>FAT32</Format>
+              <Label>EFI</Label>
+            </ModifyPartition>`,
+    `<ModifyPartition wcm:action="add">
+              <Order>2</Order>
+              <PartitionID>2</PartitionID>
+            </ModifyPartition>`,
+  ]
+
+  volumes.forEach((vol, i) => {
+    const order = i + 3
+    if (vol.sizeGb == null) {
+      createParts.push(`<CreatePartition wcm:action="add">
+              <Order>${order}</Order>
+              <Type>Primary</Type>
+              <Extend>true</Extend>
+            </CreatePartition>`)
+    } else {
+      const mb = Math.max(1, Math.round(vol.sizeGb)) * 1024
+      createParts.push(`<CreatePartition wcm:action="add">
+              <Order>${order}</Order>
+              <Type>Primary</Type>
+              <Size>${mb}</Size>
+            </CreatePartition>`)
+    }
+    modifyParts.push(`<ModifyPartition wcm:action="add">
+              <Order>${order}</Order>
+              <PartitionID>${order}</PartitionID>
+              <Format>NTFS</Format>
+              <Label>${esc(vol.label)}</Label>
+              <Letter>${esc(vol.letter)}</Letter>
+            </ModifyPartition>`)
+  })
+
   return `
       <DiskConfiguration>
         <Disk wcm:action="add">
           <DiskID>0</DiskID>
           <WillWipeDisk>true</WillWipeDisk>
           <CreatePartitions>
-            <CreatePartition wcm:action="add">
-              <Order>1</Order>
-              <Type>EFI</Type>
-              <Size>260</Size>
-            </CreatePartition>
-            <CreatePartition wcm:action="add">
-              <Order>2</Order>
-              <Type>MSR</Type>
-              <Size>16</Size>
-            </CreatePartition>
-            <CreatePartition wcm:action="add">
-              <Order>3</Order>
-              <Type>Primary</Type>
-              <Size>${winMb}</Size>
-            </CreatePartition>
-            <CreatePartition wcm:action="add">
-              <Order>4</Order>
-              <Type>Primary</Type>
-              <Extend>true</Extend>
-            </CreatePartition>
+            ${createParts.join('\n            ')}
           </CreatePartitions>
           <ModifyPartitions>
-            <ModifyPartition wcm:action="add">
-              <Order>1</Order>
-              <PartitionID>1</PartitionID>
-              <Format>FAT32</Format>
-              <Label>EFI</Label>
-            </ModifyPartition>
-            <ModifyPartition wcm:action="add">
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
-            </ModifyPartition>
-            <ModifyPartition wcm:action="add">
-              <Order>3</Order>
-              <PartitionID>3</PartitionID>
-              <Format>NTFS</Format>
-              <Label>${esc(cfg.labelC)}</Label>
-              <Letter>C</Letter>
-            </ModifyPartition>
-            <ModifyPartition wcm:action="add">
-              <Order>4</Order>
-              <PartitionID>4</PartitionID>
-              <Format>NTFS</Format>
-              <Label>${esc(cfg.labelD)}</Label>
-              <Letter>D</Letter>
-            </ModifyPartition>
+            ${modifyParts.join('\n            ')}
           </ModifyPartitions>
         </Disk>
       </DiskConfiguration>
@@ -236,6 +253,23 @@ function bloatScript(cfg: UnattendConfig): string {
   if (cfg.disableHibernation) {
     lines.push('powercfg /h off')
   }
+
+  const toInstall = INSTALL_APP_CATALOG.filter((a) =>
+    cfg.installApps.includes(a.id),
+  )
+  if (toInstall.length) {
+    const drive = (cfg.installDrive || 'C').toUpperCase().slice(0, 1)
+    const locationArg =
+      drive && drive !== 'C' ? ` --location "${drive}:\\Apps"` : ''
+    lines.push(
+      '$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")',
+      ...toInstall.map(
+        (a) =>
+          `winget install -e --id ${a.wingetId} --accept-package-agreements --accept-source-agreements --disable-interactivity${locationArg}`,
+      ),
+    )
+  }
+
   // Escape for XML CDATA-ish via RunSynchronousCommand — use base64 for safety
   const ps = lines.join('; ')
   const b64 = Buffer.from(ps, 'utf16le').toString('base64')
@@ -269,11 +303,122 @@ export function validateConfig(
     })
   }
   if (cfg.diskMode === 'wipe0') {
-    if (cfg.windowsGb < 40 || cfg.windowsGb > 2000) {
+    // Do not fill missing sizes — empty fields must surface as errors.
+    const volumes = cfg.volumes.map((v) => ({
+      letter: v.letter.toUpperCase().slice(0, 1) || '',
+      label: v.label,
+      sizeGb: v.sizeGb,
+    }))
+    if (volumes.length < MIN_VOLUMES || volumes.length > MAX_VOLUMES) {
       errors.push({
-        message: t('Размер C: от 40 до 2000 ГБ', 'C: size must be 40–2000 GB'),
-        targetId: 'field-windows-gb',
+        message: t(
+          `Нужно от ${MIN_VOLUMES} до ${MAX_VOLUMES} разделов`,
+          `Need ${MIN_VOLUMES}–${MAX_VOLUMES} volumes`,
+        ),
+        targetId: 'field-volumes',
       })
+    }
+    if (volumes[0]?.letter !== 'C') {
+      errors.push({
+        message: t(
+          'Первый раздел должен быть C: (Windows)',
+          'First volume must be C: (Windows)',
+        ),
+        targetId: 'field-volumes',
+      })
+    }
+    if (volumes.length && volumes[volumes.length - 1].sizeGb != null) {
+      errors.push({
+        message: t(
+          'Последний раздел должен быть «остаток»',
+          'Last volume must be the remainder',
+        ),
+        targetId: 'field-volumes',
+      })
+    }
+    const letters = new Set<string>()
+    for (let i = 0; i < volumes.length; i++) {
+      const v = volumes[i]
+      const L = v.letter.toUpperCase()
+      if (!/^[A-Z]$/.test(L)) {
+        errors.push({
+          message: t('Некорректная буква диска', 'Invalid drive letter'),
+          targetId: 'field-volumes',
+        })
+        break
+      }
+      if (letters.has(L)) {
+        errors.push({
+          message: t(
+            'Буквы разделов должны быть разными',
+            'Volume letters must be unique',
+          ),
+          targetId: 'field-volumes',
+        })
+        break
+      }
+      letters.add(L)
+      if (!v.label.trim()) {
+        errors.push({
+          message: t(
+            `Укажите метку для ${L}:`,
+            `Enter a label for ${L}:`,
+          ),
+          targetId: 'field-volumes',
+        })
+      }
+      if (i < volumes.length - 1) {
+        if (v.sizeGb == null || !Number.isFinite(v.sizeGb)) {
+          errors.push({
+            message: t(
+              `Укажите размер для ${L}: (ГБ)`,
+              `Enter size for ${L}: (GB)`,
+            ),
+            targetId: 'field-volumes',
+          })
+        } else if (i === 0 && (v.sizeGb < MIN_WINDOWS_GB || v.sizeGb > 2000)) {
+          errors.push({
+            message: t(
+              `Размер C: от ${MIN_WINDOWS_GB} до 2000 ГБ`,
+              `C: size must be ${MIN_WINDOWS_GB}–2000 GB`,
+            ),
+            targetId: 'field-volumes',
+          })
+        } else if (i > 0 && v.sizeGb < MIN_DATA_GB) {
+          errors.push({
+            message: t(
+              `Размер ${L}: минимум ${MIN_DATA_GB} ГБ`,
+              `${L}: size at least ${MIN_DATA_GB} GB`,
+            ),
+            targetId: 'field-volumes',
+          })
+        }
+      }
+    }
+  }
+  if (cfg.installApps.length > 0) {
+    const drive = (cfg.installDrive || 'C').toUpperCase()
+    if (!/^[A-Z]$/.test(drive)) {
+      errors.push({
+        message: t(
+          'Укажите букву диска для программ',
+          'Pick a drive letter for apps',
+        ),
+        targetId: 'field-install-drive',
+      })
+    } else if (cfg.diskMode === 'wipe0') {
+      const letters = new Set(
+        cfg.volumes.map((v) => v.letter.toUpperCase().slice(0, 1)),
+      )
+      if (!letters.has(drive)) {
+        errors.push({
+          message: t(
+            'Диск для программ должен совпадать с одним из разделов',
+            'App install drive must match one of the volumes',
+          ),
+          targetId: 'field-install-drive',
+        })
+      }
     }
   }
   if (cfg.productKeyMode === 'custom' && cfg.productKeyCustom.trim().length < 5) {
@@ -304,8 +449,7 @@ export function buildUnattendXml(cfg: UnattendConfig): string {
       ? '<ProtectYourPC>3</ProtectYourPC>'
       : '<ProtectYourPC>1</ProtectYourPC>'
 
-  const autoLogon = cfg.autoLogon
-    ? `
+  const autoLogon = `
       <AutoLogon>
         <Enabled>true</Enabled>
         <Username>${user}</Username>
@@ -315,7 +459,6 @@ export function buildUnattendXml(cfg: UnattendConfig): string {
         </Password>
         <LogonCount>1</LogonCount>
       </AutoLogon>`
-    : ''
 
   const firstLogon = `
       <FirstLogonCommands>

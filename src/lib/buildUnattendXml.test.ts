@@ -35,6 +35,19 @@ test('buildUnattendXml includes computer name and wipe disk', () => {
   assert.match(xml, /<Letter>D<\/Letter>/)
   assert.match(xml, /<Name>User<\/Name>/)
   assert.match(xml, /Windows 11 Pro/)
+  assert.match(xml, /<Size>153600<\/Size>/) // 150 GB default C:
+})
+
+test('wipe disk validates empty volume size', () => {
+  const emptySize = validateConfig({
+    ...sampleConfig,
+    diskMode: 'wipe0',
+    volumes: [
+      { letter: 'C', label: 'Windows', sizeGb: null },
+      { letter: 'D', label: 'Data', sizeGb: null },
+    ],
+  })
+  assert.ok(emptySize.some((e) => /размер|size/i.test(e.message)))
 })
 
 test('interactive disk omits DiskConfiguration', () => {

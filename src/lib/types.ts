@@ -1,7 +1,19 @@
+import type { InstallAppId } from './installApps.ts'
+
+export type { InstallAppId } from './installApps.ts'
+
 export type ImageLanguage = 'ru-RU' | 'en-US'
 export type Edition = 'Pro' | 'Home' | 'Enterprise'
 export type DiskMode = 'interactive' | 'wipe0'
 export type ExpressPrivacy = 'disable-all' | 'default'
+
+/** Data volume on wiped Disk 0 (after EFI/MSR). Last must have sizeGb: null (remainder). */
+export type DiskVolume = {
+  letter: string
+  label: string
+  /** Size in GB; null = take remaining space (only last volume). */
+  sizeGb: number | null
+}
 
 export type UnattendConfig = {
   language: ImageLanguage
@@ -11,14 +23,15 @@ export type UnattendConfig = {
   productKeyMode: 'none' | 'generic' | 'custom'
   productKeyCustom: string
   diskMode: DiskMode
-  windowsGb: number
-  labelC: string
-  labelD: string
+  volumes: DiskVolume[]
+  /** Drive letter for winget installs (C = default path). */
+  installDrive: string
   computerName: string
   userName: string
   password: string
   autoLogon: boolean
   keepApps: KeepAppId[]
+  installApps: InstallAppId[]
   disableWidgets: boolean
   disableConsumerFeatures: boolean
   expressPrivacy: ExpressPrivacy
@@ -257,6 +270,7 @@ export const NAV_SECTIONS = [
   { id: 'edition', ru: 'Редакция и ключ', en: 'Edition & key' },
   { id: 'disk', ru: 'Диск', en: 'Disk' },
   { id: 'account', ru: 'Компьютер и пользователь', en: 'Computer & user' },
+  { id: 'system-apps', ru: 'Системные приложения', en: 'System apps' },
   { id: 'apps', ru: 'Приложения', en: 'Apps' },
   { id: 'tweaks', ru: 'Твики', en: 'Tweaks' },
   { id: 'download', ru: 'Обзор и скачивание', en: 'Review & download' },

@@ -1,5 +1,6 @@
 import { BLOAT_PACKAGES } from './bloatPackages.ts'
 import { ALL_KEEP_APPS, defaultConfig } from './defaults.ts'
+import { INSTALL_APP_CATALOG } from './installApps.ts'
 import type { Edition, KeepAppId, UnattendConfig } from './types.ts'
 
 const SUPPORTED_COMPONENTS = new Set([
@@ -136,8 +137,9 @@ function detectUnsupported(xml: string, lang: 'ru' | 'en'): string[] {
     const wipe = /<(?:[\w.-]+:)?WillWipeDisk\b[^>]*>\s*true\s*</i.test(
       disk.inner,
     )
+    // EFI + MSR + 2–5 data volumes
     const createCount = allTags(disk.inner, 'CreatePartition').length
-    if (!wipe || createCount !== 4) {
+    if (!wipe || createCount < 4 || createCount > 7) {
       out.push(t('Нестандартная разметка диска', 'Custom disk layout'))
     }
   }
@@ -197,6 +199,7 @@ export function parseUnattendXml(
     ...defaultConfig,
     keyboards: [...defaultConfig.keyboards],
     keepApps: [...defaultConfig.keepApps],
+    installApps: [...defaultConfig.installApps],
   }
 
   const uiLang =
@@ -234,19 +237,36 @@ export function parseUnattendXml(
 
   if (/<(?:[\w.-]+:)?WillWipeDisk\b/i.test(trimmed)) {
     cfg.diskMode = 'wipe0'
-    for (const part of allTags(trimmed, 'CreatePartition')) {
-      if (textOf(part.inner, 'Order') === '3') {
-        const sizeMb = Number(textOf(part.inner, 'Size'))
-        if (Number.isFinite(sizeMb) && sizeMb > 0) {
-          cfg.windowsGb = Math.round(sizeMb / 1024)
-        }
-      }
+    const creates = allTags(trimmed, 'CreatePartition')
+    const modifies = allTags(trimmed, 'ModifyPartition')
+    const byPartId = new Map(
+      modifies.map((mp) => [textOf(mp.inner, 'PartitionID'), mp] as const),
+    )
+    const volumes: UnattendConfig['volumes'] = []
+    for (const part of creates) {
+      const order = Number(textOf(part.inner, 'Order'))
+      if (!Number.isFinite(order) || order < 3) continue
+      const mp = byPartId.get(String(order))
+      const letter = (mp ? textOf(mp.inner, 'Letter') : '').toUpperCase() || 'D'
+      const label = mp ? textOf(mp.inner, 'Label') : letter
+      const extend = /true/i.test(textOf(part.inner, 'Extend'))
+      const sizeMb = Number(textOf(part.inner, 'Size'))
+      volumes.push({
+        letter,
+        label: label || letter,
+        sizeGb:
+          extend || !Number.isFinite(sizeMb) || sizeMb <= 0
+            ? null
+            : Math.round(sizeMb / 1024),
+      })
     }
-    for (const mp of allTags(trimmed, 'ModifyPartition')) {
-      const letter = textOf(mp.inner, 'Letter').toUpperCase()
-      const label = textOf(mp.inner, 'Label')
-      if (letter === 'C' && label) cfg.labelC = label
-      if (letter === 'D' && label) cfg.labelD = label
+    if (volumes.length >= 2) {
+      volumes[0] = { ...volumes[0], letter: 'C' }
+      volumes[volumes.length - 1] = {
+        ...volumes[volumes.length - 1],
+        sizeGb: null,
+      }
+      cfg.volumes = volumes
     }
   } else if (/<(?:[\w.-]+:)?InstallToAvailablePartition\b/i.test(trimmed)) {
     cfg.diskMode = 'interactive'
@@ -261,9 +281,7 @@ export function parseUnattendXml(
     cfg.password = pwd ? textOf(pwd.inner, 'Value') : ''
   }
 
-  const auto = firstTag(trimmed, 'AutoLogon')
-  cfg.autoLogon =
-    !!auto && /<(?:[\w.-]+:)?Enabled\b[^>]*>\s*true\s*</i.test(auto.inner)
+  cfg.autoLogon = true
 
   const protect = textOf(trimmed, 'ProtectYourPC')
   cfg.expressPrivacy = protect === '3' ? 'disable-all' : 'default'
@@ -287,6 +305,12 @@ export function parseUnattendXml(
       }
     }
     cfg.keepApps = parseKeepAppsFromScript(script)
+    cfg.installApps = INSTALL_APP_CATALOG.filter((a) =>
+      script.includes(a.wingetId),
+    ).map((a) => a.id)
+    const loc = script.match(/--location\s+"([A-Za-z]):\\Apps"/i)
+    if (loc) cfg.installDrive = loc[1].toUpperCase()
+    else if (cfg.installApps.length) cfg.installDrive = 'C'
     cfg.disableWidgets = /AllowNewsAndInterests/.test(script)
     cfg.disableConsumerFeatures = /DisableWindowsConsumerFeatures/.test(script)
     cfg.showFileExtensions = /HideFileExt/.test(script)
