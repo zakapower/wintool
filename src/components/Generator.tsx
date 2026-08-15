@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Download, RotateCcw, Upload } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { defaultConfig } from '@/lib/defaults'
-import { validateConfig } from '@/lib/buildUnattendXml'
+import { buildUnattendXml, validateConfig } from '@/lib/buildUnattendXml'
 import { parseUnattendXml } from '@/lib/parseUnattendXml'
 import {
   APP_CATALOG,
@@ -38,6 +39,8 @@ import './Generator.css'
 export function Generator() {
   const { lang, t } = useApp()
   const [cfg, setCfg] = useState<UnattendConfig>(defaultConfig)
+  const cfgRef = useRef(cfg)
+  cfgRef.current = cfg
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
@@ -316,7 +319,12 @@ export function Generator() {
   }
 
   async function download() {
-    const errs = validateConfig(cfg, lang)
+    flushSync(() => {
+      const active = document.activeElement
+      if (active instanceof HTMLElement) active.blur()
+    })
+    const latest = cfgRef.current
+    const errs = validateConfig(latest, lang)
     if (errs.length) {
       setError(errs.map((e) => e.message).join('; '))
       document.getElementById('download')?.scrollIntoView({ behavior: 'smooth' })
@@ -325,18 +333,11 @@ export function Generator() {
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cfg),
+      // Prefer local generation so download works fully offline (PWA).
+      const xml = buildUnattendXml(latest)
+      const blob = new Blob([xml], {
+        type: 'application/xml;charset=utf-8',
       })
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null
-        throw new Error(
-          data?.error || t(`Ошибка ${res.status}`, `Error ${res.status}`),
-        )
-      }
-      const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -356,65 +357,66 @@ export function Generator() {
 
   return (
     <div className="generator">
-      <aside className="generator__aside">
-        <SideNav />
-      </aside>
-
-      <div className="generator__main">
-        <header className="generator__intro">
-          <h1 className="generator__title">
-            {t('Генератор autounattend.xml', 'autounattend.xml generator')}
-          </h1>
-          <p className="generator__lead">
-            {t(
-              'Настройте блоки слева по якорям, скачайте файл и положите в корень установочной флешки Windows 11.',
-              'Use the sections on the left, download the file, and put it in the root of your Windows 11 install USB.',
+      <header className="generator__intro">
+        <h1 className="generator__title">
+          {t('Генератор autounattend.xml', 'autounattend.xml generator')}
+        </h1>
+        <p className="generator__lead">
+          {t(
+            'Настройте разделы, скачайте файл и положите в корень установочной флешки Windows 11.',
+            'Configure the sections, download the file, and put it in the root of your Windows 11 install USB.',
+          )}
+        </p>
+        <div className="generator__actions">
+          <button
+            type="button"
+            className="btn btn--ghost generator__reset"
+            onClick={resetAll}
+          >
+            <RotateCcw size={18} strokeWidth={2.25} aria-hidden />
+            {t('Сбросить', 'Reset')}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost generator__reset"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload size={18} strokeWidth={2.25} aria-hidden />
+            {t('Загрузить XML', 'Upload XML')}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xml,text/xml,application/xml"
+            className="generator__file"
+            aria-label={t(
+              'Загрузить свой autounattend.xml',
+              'Upload your autounattend.xml',
             )}
-          </p>
-          <div className="generator__actions">
-            <button
-              type="button"
-              className="btn btn--ghost generator__reset"
-              onClick={resetAll}
-            >
-              <RotateCcw size={18} strokeWidth={2.25} aria-hidden />
-              {t('Сбросить', 'Reset')}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost generator__reset"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={18} strokeWidth={2.25} aria-hidden />
-              {t('Загрузить XML', 'Upload XML')}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xml,text/xml,application/xml"
-              className="generator__file"
-              aria-label={t(
-                'Загрузить свой autounattend.xml',
-                'Upload your autounattend.xml',
-              )}
-              onChange={(e) => void onImportFile(e.target.files?.[0])}
-            />
+            onChange={(e) => void onImportFile(e.target.files?.[0])}
+          />
+        </div>
+        {importError ? (
+          <div className="form-error generator__import-error" role="alert">
+            <p>{importError}</p>
+            {importUnsupported.length > 0 ? (
+              <ul className="generator__import-list">
+                {importUnsupported.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
-          {importError ? (
-            <div className="form-error generator__import-error" role="alert">
-              <p>{importError}</p>
-              {importUnsupported.length > 0 ? (
-                <ul className="generator__import-list">
-                  {importUnsupported.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
-        </header>
+        ) : null}
+      </header>
 
-        <section id="language" className="block">
+      <div className="generator__body">
+        <aside className="generator__aside">
+          <SideNav />
+        </aside>
+
+        <div className="generator__main">
+          <section id="language" className="block">
           <h2 className="block__title">{t('Язык и регион', 'Language & region')}</h2>
           <div className="field">
             <span className="field__label">{t('Язык Windows', 'Windows language')}</span>
@@ -741,13 +743,12 @@ export function Generator() {
               {t('Убрать все', 'Deselect all')}
             </button>
           </div>
-          <div className="apps-cats" role="tablist" aria-label={t('Категории', 'Categories')}>
+          <div className="apps-cats" aria-label={t('Категории', 'Categories')}>
             {SYSTEM_APP_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
-                role="tab"
-                aria-selected={systemCat === cat.id}
+                aria-pressed={systemCat === cat.id}
                 className={
                   systemCat === cat.id
                     ? 'apps-cats__btn apps-cats__btn--active'
@@ -816,13 +817,12 @@ export function Generator() {
               {t('Убрать все', 'Deselect all')}
             </button>
           </div>
-          <div className="apps-cats" role="tablist" aria-label={t('Категории', 'Categories')}>
+          <div className="apps-cats" aria-label={t('Категории', 'Categories')}>
             {INSTALL_APP_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
-                role="tab"
-                aria-selected={installCat === cat.id}
+                aria-pressed={installCat === cat.id}
                 className={
                   installCat === cat.id
                     ? 'apps-cats__btn apps-cats__btn--active'
@@ -1373,6 +1373,7 @@ export function Generator() {
               : t('Скачать autounattend.xml', 'Download autounattend.xml')}
           </button>
         </section>
+      </div>
       </div>
     </div>
   )

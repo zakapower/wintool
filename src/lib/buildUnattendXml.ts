@@ -245,9 +245,8 @@ function bloatScript(cfg: UnattendConfig): string {
   }
   if (cfg.disableOneDrive) {
     lines.push(
-      'taskkill /f /im OneDrive.exe',
-      'if exist "%SystemRoot%\\System32\\OneDriveSetup.exe" start /wait "" "%SystemRoot%\\System32\\OneDriveSetup.exe" /uninstall',
-      'if exist "%SystemRoot%\\SysWOW64\\OneDriveSetup.exe" start /wait "" "%SystemRoot%\\SysWOW64\\OneDriveSetup.exe" /uninstall',
+      'Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue',
+      '@("$env:SystemRoot\\System32\\OneDriveSetup.exe","$env:SystemRoot\\SysWOW64\\OneDriveSetup.exe") | ForEach-Object { if (Test-Path $_) { Start-Process $_ -ArgumentList "/uninstall" -Wait -ErrorAction SilentlyContinue } }',
     )
   }
   if (cfg.disableHibernation) {
@@ -270,10 +269,27 @@ function bloatScript(cfg: UnattendConfig): string {
     )
   }
 
-  // Escape for XML CDATA-ish via RunSynchronousCommand — use base64 for safety
+  // Escape for XML via EncodedCommand — UTF-16LE base64 (works in Node and browser)
   const ps = lines.join('; ')
-  const b64 = Buffer.from(ps, 'utf16le').toString('base64')
+  const b64 = utf16LeToBase64(ps)
   return `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${b64}`
+}
+
+function utf16LeToBase64(text: string): string {
+  const bytes = new Uint8Array(text.length * 2)
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    bytes[i * 2] = code & 0xff
+    bytes[i * 2 + 1] = (code >> 8) & 0xff
+  }
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(bytes).toString('base64')
+  }
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!)
+  }
+  return btoa(binary)
 }
 
 export type ConfigError = {
@@ -287,7 +303,17 @@ export function validateConfig(
 ): ConfigError[] {
   const t = (ru: string, en: string) => (lang === 'ru' ? ru : en)
   const errors: ConfigError[] = []
-  if (!/^[A-Za-z0-9-]{1,15}$/.test(cfg.computerName)) {
+  if (!cfg || typeof cfg !== 'object') {
+    errors.push({
+      message: t('Некорректная конфигурация', 'Invalid configuration'),
+      targetId: 'download',
+    })
+    return errors
+  }
+  const computerName =
+    typeof cfg.computerName === 'string' ? cfg.computerName : ''
+  const userName = typeof cfg.userName === 'string' ? cfg.userName : ''
+  if (!/^[A-Za-z0-9-]{1,15}$/.test(computerName)) {
     errors.push({
       message: t(
         'Имя ПК: 1–15 символов (латиница, цифры, дефис)',
@@ -296,7 +322,7 @@ export function validateConfig(
       targetId: 'field-computer-name',
     })
   }
-  if (!cfg.userName.trim()) {
+  if (!userName.trim()) {
     errors.push({
       message: t('Укажите имя пользователя', 'Enter a user name'),
       targetId: 'field-user-name',
@@ -304,11 +330,15 @@ export function validateConfig(
   }
   if (cfg.diskMode === 'wipe0') {
     // Do not fill missing sizes — empty fields must surface as errors.
-    const volumes = cfg.volumes.map((v) => ({
-      letter: v.letter.toUpperCase().slice(0, 1) || '',
-      label: v.label,
-      sizeGb: v.sizeGb,
-    }))
+    const volumes = Array.isArray(cfg.volumes)
+      ? cfg.volumes.map((v) => ({
+          letter: String(v?.letter ?? '')
+            .toUpperCase()
+            .slice(0, 1),
+          label: typeof v?.label === 'string' ? v.label : '',
+          sizeGb: v?.sizeGb,
+        }))
+      : []
     if (volumes.length < MIN_VOLUMES || volumes.length > MAX_VOLUMES) {
       errors.push({
         message: t(

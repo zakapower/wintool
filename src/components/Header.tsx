@@ -61,7 +61,7 @@ export function Header() {
         type="button"
         className={`ctrl${lang === 'en' ? ' ctrl--lang-en' : ''}`}
         onClick={toggleLang}
-        aria-label={t('Switch to English', 'Переключить на русский')}
+        aria-label={t('Переключить на English', 'Switch to Russian')}
       >
         <span className="ctrl__stack" aria-hidden>
           <span className="ctrl__face ctrl__face--en">EN</span>

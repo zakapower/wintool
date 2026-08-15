@@ -14,16 +14,25 @@ import './SideNav.css'
 const DEFAULT_SECTION_IDS = NAV_SECTIONS.map((s) => s.id)
 
 function headerOffset() {
-  const raw = getComputedStyle(document.documentElement)
+  const scope =
+    document.querySelector('.generator') ?? document.documentElement
+  const styles = getComputedStyle(scope)
+  const headerRaw = getComputedStyle(document.documentElement)
     .getPropertyValue('--header-h')
     .trim()
-  const parsed = Number.parseFloat(raw)
-  return (Number.isFinite(parsed) ? parsed : 56) + 16
+  const headerParsed = Number.parseFloat(headerRaw)
+  const header = Number.isFinite(headerParsed) ? headerParsed : 56
+  const stickyNav = styles.getPropertyValue('--side-nav-sticky-h').trim()
+  const nav = Number.parseFloat(stickyNav)
+  const navH = Number.isFinite(nav) ? nav : 0
+  return header + (navH > 0 ? navH : 16)
 }
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
+
+let scrollRaf = 0
 
 function smoothScrollTo(el: HTMLElement, duration = 720) {
   const start = window.scrollY
@@ -39,6 +48,12 @@ function smoothScrollTo(el: HTMLElement, duration = 720) {
     return Promise.resolve()
   }
 
+  if (scrollRaf) {
+    window.cancelAnimationFrame(scrollRaf)
+    scrollRaf = 0
+    document.body.classList.remove('is-programmatic-scroll')
+  }
+
   document.body.classList.add('is-programmatic-scroll')
 
   return new Promise<void>((resolve) => {
@@ -48,13 +63,14 @@ function smoothScrollTo(el: HTMLElement, duration = 720) {
       const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
       window.scrollTo(0, start + diff * eased)
       if (t < 1) {
-        requestAnimationFrame(frame)
+        scrollRaf = window.requestAnimationFrame(frame)
       } else {
+        scrollRaf = 0
         document.body.classList.remove('is-programmatic-scroll')
         resolve()
       }
     }
-    requestAnimationFrame(frame)
+    scrollRaf = window.requestAnimationFrame(frame)
   })
 }
 
@@ -66,6 +82,7 @@ type Props = {
 export function SideNav({ sectionIds = DEFAULT_SECTION_IDS }: Props) {
   const { lang, t } = useApp()
   const [activeId, navigate] = useActiveSection(sectionIds)
+  const navRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const linkRefs = useRef<Map<string, HTMLAnchorElement>>(new Map())
   const pillRef = useRef<HTMLSpanElement>(null)
@@ -90,42 +107,92 @@ export function SideNav({ sectionIds = DEFAULT_SECTION_IDS }: Props) {
     syncPill()
   }, [syncPill, lang])
 
+  useLayoutEffect(() => {
+    const navEl = navRef.current
+    const generatorEl = document.querySelector('.generator')
+    if (!(navEl instanceof HTMLElement) || !(generatorEl instanceof HTMLElement)) {
+      return
+    }
+    const nav = navEl
+    const generator = generatorEl
+
+    function syncStickyHeight() {
+      const mobile = window.matchMedia('(max-width: 860px)').matches
+      if (!mobile) {
+        generator.style.removeProperty('--side-nav-sticky-h')
+        return
+      }
+      const height = Math.ceil(nav.getBoundingClientRect().height)
+      if (height > 0) {
+        generator.style.setProperty('--side-nav-sticky-h', `${height}px`)
+      }
+    }
+
+    syncStickyHeight()
+    const ro = new ResizeObserver(syncStickyHeight)
+    ro.observe(nav)
+    window.addEventListener('resize', syncStickyHeight, { passive: true })
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', syncStickyHeight)
+      generator.style.removeProperty('--side-nav-sticky-h')
+    }
+  }, [lang])
+
+  useEffect(() => {
+    const link = linkRefs.current.get(activeId)
+    const list = listRef.current
+    if (!link || !list) return
+    const listRect = list.getBoundingClientRect()
+    const linkRect = link.getBoundingClientRect()
+    const left =
+      list.scrollLeft +
+      (linkRect.left - listRect.left) -
+      (listRect.width - linkRect.width) / 2
+    list.scrollTo({
+      left: Math.max(0, left),
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    })
+  }, [activeId])
+
   useEffect(() => {
     window.addEventListener('resize', syncPill, { passive: true })
     return () => window.removeEventListener('resize', syncPill)
   }, [syncPill])
 
   return (
-    <nav className="side-nav" aria-label={t('Разделы', 'Sections')}>
+    <nav ref={navRef} className="side-nav" aria-label={t('Разделы', 'Sections')}>
       <p className="side-nav__title">{t('Разделы', 'Sections')}</p>
-      <ul className="side-nav__list" ref={listRef}>
+      <div className="side-nav__track">
         <span ref={pillRef} className="side-nav__pill" aria-hidden />
-        {NAV_SECTIONS.map((s) => (
-          <li key={s.id}>
-            <a
-              ref={(node) => {
-                if (node) linkRefs.current.set(s.id, node)
-                else linkRefs.current.delete(s.id)
-              }}
-              href={`#${s.id}`}
-              className={
-                activeId === s.id
-                  ? 'side-nav__link side-nav__link--active'
-                  : 'side-nav__link'
-              }
-              onClick={(e) => {
-                e.preventDefault()
-                const el = document.getElementById(s.id)
-                if (!el) return
-                navigate(s.id)
-                void smoothScrollTo(el)
-              }}
-            >
-              {lang === 'ru' ? s.ru : s.en}
-            </a>
-          </li>
-        ))}
-      </ul>
+        <ul className="side-nav__list" ref={listRef}>
+          {NAV_SECTIONS.map((s) => (
+            <li key={s.id}>
+              <a
+                ref={(node) => {
+                  if (node) linkRefs.current.set(s.id, node)
+                  else linkRefs.current.delete(s.id)
+                }}
+                href={`#${s.id}`}
+                className={
+                  activeId === s.id
+                    ? 'side-nav__link side-nav__link--active'
+                    : 'side-nav__link'
+                }
+                onClick={(e) => {
+                  e.preventDefault()
+                  const el = document.getElementById(s.id)
+                  if (!el) return
+                  navigate(s.id)
+                  void smoothScrollTo(el)
+                }}
+              >
+                {lang === 'ru' ? s.ru : s.en}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </nav>
   )
 }
@@ -137,6 +204,7 @@ export function useActiveSection(ids: readonly string[]) {
   const activeRef = useRef(ids[0] ?? '')
   const topsRef = useRef<Array<{ id: string; top: number }>>([])
   const raf = useRef(0)
+  const trailing = useRef(0)
   const lastCommit = useRef(0)
   const lastDocHeight = useRef(0)
 
@@ -187,17 +255,26 @@ export function useActiveSection(ids: readonly string[]) {
       return next
     }
 
+    function commit(next: string) {
+      lastCommit.current = performance.now()
+      activeRef.current = next
+      setActiveId(next)
+      syncHash(next)
+    }
+
     function update(force = false) {
       if (lockTarget.current && performance.now() < lockedUntil.current) return
       lockTarget.current = null
       const next = pick()
       if (next === activeRef.current) return
       const now = performance.now()
-      if (!force && now - lastCommit.current < 100) return
-      lastCommit.current = now
-      activeRef.current = next
-      setActiveId(next)
-      syncHash(next)
+      if (!force && now - lastCommit.current < 100) {
+        window.clearTimeout(trailing.current)
+        trailing.current = window.setTimeout(() => update(true), 100)
+        return
+      }
+      window.clearTimeout(trailing.current)
+      commit(next)
     }
 
     function onScroll() {
@@ -223,6 +300,12 @@ export function useActiveSection(ids: readonly string[]) {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)
       window.cancelAnimationFrame(raf.current)
+      window.clearTimeout(trailing.current)
+      if (scrollRaf) {
+        window.cancelAnimationFrame(scrollRaf)
+        scrollRaf = 0
+        document.body.classList.remove('is-programmatic-scroll')
+      }
     }
   }, [ids, syncHash])
 

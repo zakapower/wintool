@@ -186,10 +186,24 @@ export function OverlayScrollbar() {
   useEffect(() => {
     if (!needed) return
     const root = document.documentElement
+    const view = root.clientHeight
+    const total = root.scrollHeight
+    const track = Math.max(0, view - headerH.current - ARROW * 2)
+    const ratio = total > 0 ? view / total : 1
+    const thumbHeight = Math.max(MIN_THUMB, Math.round(track * ratio))
+    const maxTop = Math.max(0, track - thumbHeight)
+    const maxScroll = Math.max(1, total - view)
+    const thumbTop =
+      ARROW + Math.round((root.scrollTop / maxScroll) * maxTop)
+    metrics.current.view = view
+    metrics.current.total = total
+    metrics.current.track = track
+    metrics.current.thumbHeight = thumbHeight
+    metrics.current.thumbTop = thumbTop
     const thumb = thumbRef.current
     if (thumb) {
-      thumb.style.top = `${metrics.current.thumbTop}px`
-      thumb.style.height = `${metrics.current.thumbHeight}px`
+      thumb.style.top = `${thumbTop}px`
+      thumb.style.height = `${thumbHeight}px`
     }
 
     let moveRaf = 0

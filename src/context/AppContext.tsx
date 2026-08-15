@@ -9,8 +9,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { useRouter } from 'next/navigation'
-import { LANG_COOKIE, type Lang } from '@/lib/lang'
+import {
+  LANG_COOKIE,
+  langFromAcceptLanguage,
+  parseLang,
+  type Lang,
+} from '@/lib/lang'
 import { resolveTheme, type Theme } from '@/lib/theme'
 
 interface AppState {
@@ -24,6 +28,26 @@ interface AppState {
 }
 
 const AppContext = createContext<AppState | null>(null)
+
+function readCookieLang(): Lang | null {
+  try {
+    const match = document.cookie.match(
+      new RegExp(`(?:^|; )${LANG_COOKIE}=(ru|en)`),
+    )
+    return parseLang(match?.[1])
+  } catch {
+    return null
+  }
+}
+
+function readStoredLang(): Lang {
+  return (
+    readCookieLang() ??
+    langFromAcceptLanguage(
+      typeof navigator !== 'undefined' ? navigator.language : null,
+    )
+  )
+}
 
 function readStoredTheme(): Theme {
   try {
@@ -53,29 +77,19 @@ function writeLangCookie(lang: Lang) {
   document.cookie = `${LANG_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`
 }
 
-export function AppProvider({
-  children,
-  initialLang,
-}: {
-  children: ReactNode
-  initialLang: Lang
-}) {
-  const router = useRouter()
-  const [lang, setLangState] = useState<Lang>(initialLang)
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Lang>('ru')
   const [theme, setTheme] = useState<Theme>('dark')
   const [themeReady, setThemeReady] = useState(false)
 
   useLayoutEffect(() => {
+    setLangState(readStoredLang())
     const next = readStoredTheme()
     setTheme(next)
     applyTheme(next)
     const id = requestAnimationFrame(() => setThemeReady(true))
     return () => cancelAnimationFrame(id)
   }, [])
-
-  useEffect(() => {
-    setLangState(initialLang)
-  }, [initialLang])
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -89,13 +103,11 @@ export function AppProvider({
       setLang: (next) => {
         writeLangCookie(next)
         setLangState(next)
-        router.refresh()
       },
       toggleLang: () => {
         const next: Lang = lang === 'ru' ? 'en' : 'ru'
         writeLangCookie(next)
         setLangState(next)
-        router.refresh()
       },
       toggleTheme: () => {
         const next = theme === 'light' ? 'dark' : 'light'
@@ -104,7 +116,7 @@ export function AppProvider({
       },
       t: (ru, en) => (lang === 'ru' ? ru : en),
     }),
-    [lang, theme, themeReady, router],
+    [lang, theme, themeReady],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

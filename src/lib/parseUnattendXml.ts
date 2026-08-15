@@ -200,6 +200,7 @@ export function parseUnattendXml(
     keyboards: [...defaultConfig.keyboards],
     keepApps: [...defaultConfig.keepApps],
     installApps: [...defaultConfig.installApps],
+    volumes: defaultConfig.volumes.map((v) => ({ ...v })),
   }
 
   const uiLang =

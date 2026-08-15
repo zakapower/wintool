@@ -16,7 +16,7 @@ type TextProps = Omit<
   type?: 'text' | 'password'
 }
 
-/** Keeps typing local; commits into form config on blur. */
+/** Keeps typing local; commits into form config on blur or Enter. */
 export function DeferredTextInput({
   value,
   onCommit,
@@ -29,17 +29,27 @@ export function DeferredTextInput({
     setLocal(value)
   }, [value])
 
+  function commit() {
+    if (local === value) return
+    flushSync(() => {
+      onCommit(local)
+    })
+  }
+
   return (
     <input
       {...rest}
       type={type}
       value={local}
       onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => {
-        if (local === value) return
-        flushSync(() => {
-          onCommit(local)
-        })
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commit()
+          ;(e.target as HTMLInputElement).blur()
+        }
+        rest.onKeyDown?.(e)
       }}
     />
   )
@@ -64,19 +74,29 @@ export function DeferredNumberInput({
     setLocal(String(value))
   }, [value])
 
+  function commit() {
+    const next = Number(local)
+    const committed = Number.isFinite(next) ? next : 0
+    if (committed === value && local === String(value)) return
+    flushSync(() => {
+      onCommit(committed)
+    })
+  }
+
   return (
     <input
       {...rest}
       type="number"
       value={local}
       onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => {
-        const next = Number(local)
-        const committed = Number.isFinite(next) ? next : 0
-        if (committed === value && local === String(value)) return
-        flushSync(() => {
-          onCommit(committed)
-        })
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commit()
+          ;(e.target as HTMLInputElement).blur()
+        }
+        rest.onKeyDown?.(e)
       }}
     />
   )

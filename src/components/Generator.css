@@ -1,13 +1,17 @@
 .generator {
   --settings-w: 40rem;
   --nav-gap: 1.5rem;
+  --side-nav-sticky-h: 0px;
   display: grid;
-  /* Левая колонка не уже сайдбара — иначе текст обрезается overflow-x */
   grid-template-columns:
     minmax(max-content, 1fr)
     min(var(--settings-w), 100%)
     minmax(0, 1fr);
+  grid-template-areas:
+    'nav intro .'
+    'nav main .';
   column-gap: var(--nav-gap);
+  row-gap: 0;
   align-items: start;
   width: 100%;
   margin: 0;
@@ -16,8 +20,19 @@
   animation: in 0.45s ease both;
 }
 
+.generator__body {
+  display: contents;
+}
+
+.generator__intro {
+  grid-area: intro;
+  margin-bottom: 1.25rem;
+  width: 100%;
+  min-width: 0;
+}
+
 .generator__aside {
-  grid-column: 1;
+  grid-area: nav;
   justify-self: end;
   width: max-content;
   position: sticky;
@@ -26,15 +41,11 @@
 }
 
 .generator__main {
-  grid-column: 2;
+  grid-area: main;
   width: 100%;
   min-width: 0;
   position: relative;
   z-index: 0;
-}
-
-.generator__intro {
-  margin-bottom: 1.25rem;
 }
 
 .generator__title {
@@ -105,7 +116,9 @@
 }
 
 .block {
-  scroll-margin-top: calc(var(--header-h, 3.5rem) + 1rem);
+  scroll-margin-top: calc(
+    var(--header-h, 3.5rem) + var(--side-nav-sticky-h, 0px) + 1rem
+  );
   padding: 1.35rem 0 1.75rem;
   border-top: 1px solid var(--line);
   position: relative;
@@ -879,59 +892,127 @@ fieldset.field > legend.field__label {
   transform: none;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1100px) {
   .generator {
     --settings-w: min(40rem, 100%);
-    grid-template-columns: 1fr;
-    row-gap: 1rem;
-    column-gap: 0;
-  }
-
-  .generator__aside,
-  .generator__main {
-    grid-column: 1;
-    justify-self: stretch;
-    width: 100%;
-    min-width: 0;
-    max-width: none;
+    --nav-gap: 1rem;
+    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-areas:
+      'nav intro'
+      'nav main';
+    max-width: 100%;
   }
 
   .generator__aside {
-    position: static;
-  }
-
-  .generator__aside .side-nav {
-    width: 100%;
+    justify-self: start;
     min-width: 0;
-    max-width: none;
   }
 
+  .generator__intro,
   .generator__main {
-    width: min(var(--settings-w), 100%);
-    justify-self: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 
 @media (max-width: 860px) {
   .generator {
     --settings-w: 100%;
+    --side-nav-sticky-h: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    row-gap: 0.85rem;
+    column-gap: 0;
+    padding: 0 0 calc(2.75rem + env(safe-area-inset-bottom, 0px));
+    max-width: 100%;
+    animation: none;
+  }
+
+  .generator__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .generator__intro,
+  .generator__main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+  }
+
+  .generator__intro {
+    margin-bottom: 0;
+    padding-top: calc(1rem + var(--side-nav-sticky-h, 3.5rem));
+  }
+
+  .generator__aside {
+    position: fixed;
+    top: calc(var(--header-h, 3.5rem));
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    z-index: 35;
+  }
+
+  .generator__aside .side-nav {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .generator__main {
     width: 100%;
   }
 
+  .generator__title {
+    font-size: clamp(1.3rem, 6vw, 1.65rem);
+  }
+
+  .generator__actions {
+    gap: 0.5rem;
+  }
+
+  .generator__reset {
+    flex: 1 1 auto;
+    min-height: 2.75rem;
+    height: auto;
+    padding: 0.65rem 0.9rem;
+  }
+
   .field,
-  .warn {
-    max-width: none;
+  .warn,
+  .choices,
+  .summary,
+  .apps-toolbar {
+    max-width: 100%;
+    min-width: 0;
   }
 
-  .choices--apps {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .choices--apps,
+  .choices--tweaks,
+  .choices--row {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
   }
 
-  .choices--tweaks {
-    grid-template-columns: repeat(2, max-content);
+  .choices--apps .choice,
+  .choices--tweaks .choice,
+  .choices--row .choice {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .choice__text {
+    white-space: normal;
   }
 
   .volume-row {
@@ -942,16 +1023,45 @@ fieldset.field > legend.field__label {
   .volume-row__actions {
     grid-column: 1 / -1;
   }
+
+  .apps-cats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    gap: 0.35rem;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 0.95rem;
+    padding: 0 0 0.15rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .apps-cats::-webkit-scrollbar {
+    display: none;
+  }
+
+  .apps-cats__btn {
+    flex: 0 0 auto;
+  }
+
+  .apps-toolbar .btn.btn--ghost {
+    min-width: 0;
+  }
+
+  .summary__row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
 }
 
 @media (max-width: 560px) {
-  .choices--apps {
-    grid-template-columns: minmax(0, 1fr);
+  .choice {
+    min-height: 2.65rem;
   }
 
-  .choices--tweaks,
-  .choices--row {
-    grid-template-columns: max-content;
+  .btn {
+    width: 100%;
   }
 }
 
