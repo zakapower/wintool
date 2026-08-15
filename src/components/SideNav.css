@@ -1,0 +1,114 @@
+.side-nav {
+  position: static;
+  align-self: start;
+  width: max-content;
+  min-width: max-content;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 0.65rem;
+  overflow: visible;
+}
+
+.side-nav__title {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.side-nav__list {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.side-nav__pill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 0;
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.side-nav__pill--ready {
+  opacity: 1;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
+}
+
+.side-nav__link {
+  position: relative;
+  z-index: 1;
+  display: block;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.45rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  transition: color 0.25s ease;
+}
+
+.side-nav__link:hover {
+  color: var(--ink);
+}
+
+.side-nav__link--active {
+  color: var(--accent);
+  background: transparent;
+}
+
+@media (max-width: 860px) {
+  .side-nav {
+    position: static;
+    animation: none;
+  }
+
+  .side-nav__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .side-nav__pill {
+    display: none;
+  }
+
+  .side-nav__link {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  .side-nav__link--active {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-nav__pill--ready {
+    transition: none;
+  }
+
+  .side-nav__link {
+    transition: none;
+  }
+}

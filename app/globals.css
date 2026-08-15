@@ -1,0 +1,122 @@
+:root {
+  --font: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-display: 'Literata', Georgia, serif;
+  --max: 72rem;
+  --gutter: 1rem;
+  --header-h: calc(1.5rem + 2.35rem + 1px);
+
+  --bg: #f4f6fa;
+  --wash: #dbe4f2;
+  --surface: #ffffff;
+  --ink: #121826;
+  --muted: #5b6578;
+  --line: #cfd7e6;
+  --accent: #1d4ed8;
+  --on-accent: #eff6ff;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1218;
+  --wash: #1a2233;
+  --surface: #151a24;
+  --ink: #e8eef8;
+  --muted: #9aa6b8;
+  --line: #2a3344;
+  --accent: #60a5fa;
+  --on-accent: #0c1a33;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
+  scroll-behavior: auto;
+  font-family: var(--font);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink);
+  background:
+    radial-gradient(
+      80% 50% at 100% 0%,
+      color-mix(in srgb, var(--wash) 70%, transparent),
+      transparent 60%
+    ),
+    var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+@keyframes in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  @keyframes in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
