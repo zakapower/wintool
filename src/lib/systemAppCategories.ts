@@ -141,12 +141,12 @@ const OTHER: KeepAppId[] = [
 ]
 
 const BY_ID = new Map<KeepAppId, SystemAppCategoryId>([
-  ...WINDOWS.map((id) => [id, 'windows' as const]),
-  ...MICROSOFT.map((id) => [id, 'microsoft' as const]),
-  ...BING.map((id) => [id, 'bing' as const]),
-  ...XBOX.map((id) => [id, 'xbox' as const]),
-  ...OEM.map((id) => [id, 'oem' as const]),
-  ...OTHER.map((id) => [id, 'other' as const]),
+  ...WINDOWS.map((id): [KeepAppId, SystemAppCategoryId] => [id, 'windows']),
+  ...MICROSOFT.map((id): [KeepAppId, SystemAppCategoryId] => [id, 'microsoft']),
+  ...BING.map((id): [KeepAppId, SystemAppCategoryId] => [id, 'bing']),
+  ...XBOX.map((id): [KeepAppId, SystemAppCategoryId] => [id, 'xbox']),
+  ...OEM.map((id): [KeepAppId, SystemAppCategoryId] => [id, 'oem']),
+  ...OTHER.map((id): [KeepAppId, SystemAppCategoryId] => [id, 'other']),
 ])
 
 export function systemAppCategory(id: KeepAppId): SystemAppCategoryId {
