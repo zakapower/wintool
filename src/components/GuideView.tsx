@@ -13,8 +13,8 @@ export function GuideView() {
         <h1>{t('Инструкция', 'Guide')}</h1>
         <p className="about__lead">
           {t(
-            'Что нужно для переустановки Windows и как применить autounattend.xml.',
-            'What you need to reinstall Windows and how to use autounattend.xml.',
+            'Что нужно для переустановки Windows 11 и как применить autounattend.xml.',
+            'What you need to reinstall Windows 11 and how to use autounattend.xml.',
           )}
         </p>
       </header>
@@ -31,8 +31,8 @@ export function GuideView() {
             </li>
             <li>
               {t(
-                'Образ Windows 10/11 (ISO), например с',
-                'Windows 10/11 ISO, for example from',
+                'Образ Windows 11 (ISO), например с',
+                'Windows 11 ISO, for example from',
               )}{' '}
               <a
                 href="https://massgrave.dev/genuine-installation-media"

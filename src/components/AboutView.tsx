@@ -26,8 +26,8 @@ export function AboutView() {
           <h2>{t('Что это', 'What this is')}</h2>
           <p>
             {t(
-              'WinTools генерирует файл autounattend.xml для автоустановки Windows 10/11. Вы собираете ответы мастера установки в удобном UI и скачиваете готовый XML на флешку рядом с образом.',
-              'WinTools generates an autounattend.xml answer file for Windows 10/11 setup. You configure options in a simple UI, download the XML, and place it next to the install image on a USB stick.',
+              'WinTools генерирует файл autounattend.xml для автоустановки Windows 11. Вы собираете ответы мастера установки в удобном UI и скачиваете готовый XML на флешку рядом с образом.',
+              'WinTools generates an autounattend.xml answer file for Windows 11 setup. You configure options in a simple UI, download the XML, and place it next to the install image on a USB stick.',
             )}
           </p>
         </section>

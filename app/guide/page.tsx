@@ -3,7 +3,7 @@ import { GuideView } from '@/components/GuideView'
 
 export const metadata: Metadata = {
   title: 'Инструкция',
-  description: 'How to reinstall Windows with WinTools autounattend.xml.',
+  description: 'How to reinstall Windows 11 with WinTools autounattend.xml.',
 }
 
 export default function GuidePage() {

@@ -665,23 +665,48 @@ fieldset.field > legend.field__label {
 
 .summary {
   margin: 0 0 1.25rem;
-  padding: 0.75rem 0.9rem;
-  width: fit-content;
+  padding: 0;
+  width: 100%;
   max-width: none;
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: 0.75rem;
   background: var(--surface);
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  overflow: hidden;
+}
+
+.summary__group {
+  padding: 0.95rem 1rem 1.05rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.summary__group:last-child {
+  border-bottom: 0;
+}
+
+.summary__group-title {
+  margin: 0 0 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.summary__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
 .summary__row {
   display: grid;
-  grid-template-columns: max-content auto;
-  column-gap: 0.65rem;
+  grid-template-columns: 10.5rem minmax(0, 1fr);
+  column-gap: 0.85rem;
   align-items: baseline;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .summary__row dt {
@@ -690,11 +715,10 @@ fieldset.field > legend.field__label {
   font-weight: 600;
   color: var(--muted);
   line-height: 1.4;
-  white-space: nowrap;
 }
 
 .summary__row dt::after {
-  content: ':';
+  content: none;
 }
 
 .summary__row dd {
@@ -703,20 +727,24 @@ fieldset.field > legend.field__label {
   font-weight: 500;
   color: var(--ink);
   line-height: 1.4;
-  white-space: nowrap;
-}
-
-.summary__row--apps {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.4rem;
-  white-space: normal;
-}
-
-.summary__row--apps dd {
-  white-space: normal;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summary__row--stack {
+  align-items: start;
+}
+
+.summary__empty,
+.summary__meta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.summary__meta {
+  margin-bottom: 0.55rem;
 }
 
 .summary__apps {
@@ -731,13 +759,22 @@ fieldset.field > legend.field__label {
 
 .summary__apps li {
   margin: 0;
-  padding: 0.2rem 0.5rem;
-  border-radius: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.35rem;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 1.35;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .summary__row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
 }
 
 .form-error {
@@ -908,10 +945,6 @@ fieldset.field > legend.field__label {
 }
 
 @media (max-width: 560px) {
-  .summary {
-    width: fit-content;
-  }
-
   .choices--apps {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -367,8 +367,8 @@ export function Generator() {
           </h1>
           <p className="generator__lead">
             {t(
-              'Настройте блоки слева по якорям, скачайте файл и положите в корень установочной флешки Windows.',
-              'Use the sections on the left, download the file, and put it in the root of your Windows install USB.',
+              'Настройте блоки слева по якорям, скачайте файл и положите в корень установочной флешки Windows 11.',
+              'Use the sections on the left, download the file, and put it in the root of your Windows 11 install USB.',
             )}
           </p>
           <div className="generator__actions">
@@ -533,7 +533,13 @@ export function Generator() {
                   type="radio"
                   name="diskMode"
                   checked={cfg.diskMode === 'interactive'}
-                  onChange={() => patch('diskMode', 'interactive')}
+                  onChange={() =>
+                    setCfg((prev) => ({
+                      ...prev,
+                      diskMode: 'interactive',
+                      installDrive: 'C',
+                    }))
+                  }
                 />
                 <span className="choice__mark choice__mark--radio" aria-hidden />
                 <span className="choice__text">
@@ -777,29 +783,31 @@ export function Generator() {
 
         <section id="apps" className="block">
           <h2 className="block__title">{t('Приложения', 'Apps')}</h2>
-          <div className={`field${flashClass('field-install-drive')}`} id="field-install-drive">
-            <span className="field__label">
-              {t('Куда ставить программы', 'Install apps to')}
-            </span>
-            <FieldSelect
-              aria-label={t('Куда ставить программы', 'Install apps to')}
-              value={cfg.installDrive}
-              options={(
-                cfg.diskMode === 'wipe0'
-                  ? cfg.volumes.map((v) => v.letter.toUpperCase())
-                  : ['C', 'D', 'E', 'F', 'G']
-              )
-                .filter((L, i, arr) => /^[A-Z]$/.test(L) && arr.indexOf(L) === i)
-                .map((L) => ({
-                  value: L,
-                  label:
-                    L === 'C'
-                      ? t('C: (путь по умолчанию)', 'C: (default path)')
-                      : t(`${L}:\\Apps`, `${L}:\\Apps`),
-                }))}
-              onChange={(v) => patch('installDrive', v)}
-            />
-          </div>
+          {cfg.diskMode === 'wipe0' && (
+            <div
+              className={`field${flashClass('field-install-drive')}`}
+              id="field-install-drive"
+            >
+              <span className="field__label">
+                {t('Куда ставить программы', 'Install apps to')}
+              </span>
+              <FieldSelect
+                aria-label={t('Куда ставить программы', 'Install apps to')}
+                value={cfg.installDrive}
+                options={cfg.volumes
+                  .map((v) => v.letter.toUpperCase())
+                  .filter((L, i, arr) => /^[A-Z]$/.test(L) && arr.indexOf(L) === i)
+                  .map((L) => ({
+                    value: L,
+                    label:
+                      L === 'C'
+                        ? t('C: (путь по умолчанию)', 'C: (default path)')
+                        : t(`${L}:\\Apps`, `${L}:\\Apps`),
+                  }))}
+                onChange={(v) => patch('installDrive', v)}
+              />
+            </div>
+          )}
           <div className="apps-toolbar">
             <button type="button" className="btn btn--ghost" onClick={installAllInCat}>
               {t('Добавить все', 'Select all')}
@@ -1095,155 +1103,245 @@ export function Generator() {
           <h2 className="block__title">
             {t('Обзор и скачивание', 'Review & download')}
           </h2>
-          <dl className="summary">
-            <div className="summary__row">
-              <dt>{t('Язык Windows', 'Windows language')}</dt>
-              <dd>{cfg.language}</dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Раскладки', 'Keyboards')}</dt>
-              <dd>
-                {cfg.keyboards
-                  .map((k) =>
-                    k === 'ru' ? t('Русская', 'Russian') : t('English', 'English'),
-                  )
-                  .join(', ')}
-              </dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Часовой пояс', 'Time zone')}</dt>
-              <dd>
-                {cfg.timezone === 'Russian Standard Time'
-                  ? t('Москва (UTC+3)', 'Moscow (UTC+3)')
-                  : cfg.timezone}
-              </dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Редакция', 'Edition')}</dt>
-              <dd>Windows 11 {cfg.edition}</dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Ключ продукта', 'Product key')}</dt>
-              <dd>
-                {cfg.productKeyMode === 'none'
-                  ? t('Без ключа', 'No key')
-                  : cfg.productKeyMode === 'generic'
-                    ? 'Generic'
-                    : t('Свой ключ', 'Custom key')}
-              </dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Диск', 'Disk')}</dt>
-              <dd>
-                {cfg.diskMode === 'wipe0'
-                  ? t(
-                      `Стереть Disk 0 → ${cfg.volumes
-                        .map((v, i) =>
-                          i === cfg.volumes.length - 1
-                            ? `${v.letter}: остаток «${v.label}»`
-                            : `${v.letter}: ${v.sizeGb ?? '—'} ГБ «${v.label}»`,
+          <div className="summary">
+            <section className="summary__group">
+              <h3 className="summary__group-title">
+                {t('Язык и регион', 'Language & region')}
+              </h3>
+              <dl className="summary__list">
+                <div className="summary__row">
+                  <dt>{t('Язык Windows', 'Windows language')}</dt>
+                  <dd>{cfg.language}</dd>
+                </div>
+                <div className="summary__row">
+                  <dt>{t('Раскладки', 'Keyboards')}</dt>
+                  <dd>
+                    {cfg.keyboards
+                      .map((k) =>
+                        k === 'ru'
+                          ? t('Русская', 'Russian')
+                          : t('English', 'English'),
+                      )
+                      .join(', ')}
+                  </dd>
+                </div>
+                <div className="summary__row">
+                  <dt>{t('Часовой пояс', 'Time zone')}</dt>
+                  <dd>
+                    {cfg.timezone === 'Russian Standard Time'
+                      ? t('Москва (UTC+3)', 'Moscow (UTC+3)')
+                      : cfg.timezone}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="summary__group">
+              <h3 className="summary__group-title">
+                {t('Редакция и ключ', 'Edition & key')}
+              </h3>
+              <dl className="summary__list">
+                <div className="summary__row">
+                  <dt>{t('Редакция', 'Edition')}</dt>
+                  <dd>Windows 11 {cfg.edition}</dd>
+                </div>
+                <div className="summary__row">
+                  <dt>{t('Ключ продукта', 'Product key')}</dt>
+                  <dd>
+                    {cfg.productKeyMode === 'none'
+                      ? t('Без ключа', 'No key')
+                      : cfg.productKeyMode === 'generic'
+                        ? 'Generic'
+                        : t('Свой ключ', 'Custom key')}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="summary__group">
+              <h3 className="summary__group-title">{t('Диск', 'Disk')}</h3>
+              <dl className="summary__list">
+                <div className="summary__row">
+                  <dt>{t('Режим', 'Mode')}</dt>
+                  <dd>
+                    {cfg.diskMode === 'wipe0'
+                      ? t(
+                          'Стереть Disk 0 и разметить',
+                          'Wipe Disk 0 and partition',
                         )
-                        .join(', ')}`,
-                      `Wipe Disk 0 → ${cfg.volumes
-                        .map((v, i) =>
-                          i === cfg.volumes.length - 1
-                            ? `${v.letter}: remainder “${v.label}”`
-                            : `${v.letter}: ${v.sizeGb ?? '—'} GB “${v.label}”`,
-                        )
-                        .join(', ')}`,
-                    )
-                  : t('Раздел вручную в Setup', 'Pick partition in Setup')}
-              </dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Имя ПК', 'PC name')}</dt>
-              <dd>{cfg.computerName || '—'}</dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Пользователь', 'User')}</dt>
-              <dd>
-                {cfg.userName || '—'}
-                {` · ${t('автологин', 'auto logon')}`}
-                {cfg.password
-                  ? ` · ${t('с паролем', 'with password')}`
-                  : ` · ${t('без пароля', 'no password')}`}
-              </dd>
-            </div>
-            <div className="summary__row summary__row--apps">
-              <dt>{t('Системные приложения', 'System apps')}</dt>
-              <dd>
-                {cfg.keepApps.length === 0 ? (
-                  t(
+                      : t('Раздел вручную в Setup', 'Pick partition in Setup')}
+                  </dd>
+                </div>
+                {cfg.diskMode === 'wipe0' && (
+                  <>
+                    <div className="summary__row summary__row--stack">
+                      <dt>{t('Разделы', 'Volumes')}</dt>
+                      <dd>
+                        <ul className="summary__apps">
+                          {cfg.volumes.map((v, i) => (
+                            <li key={`${v.letter}-${i}`}>
+                              {i === cfg.volumes.length - 1
+                                ? t(
+                                    `${v.letter}: остаток «${v.label}»`,
+                                    `${v.letter}: remainder “${v.label}”`,
+                                  )
+                                : t(
+                                    `${v.letter}: ${v.sizeGb ?? '—'} ГБ «${v.label}»`,
+                                    `${v.letter}: ${v.sizeGb ?? '—'} GB “${v.label}”`,
+                                  )}
+                            </li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                    <div className="summary__row">
+                      <dt>{t('Программы', 'Apps path')}</dt>
+                      <dd>
+                        {cfg.installDrive === 'C'
+                          ? t('C: (по умолчанию)', 'C: (default)')
+                          : `${cfg.installDrive}:\\Apps`}
+                      </dd>
+                    </div>
+                  </>
+                )}
+              </dl>
+            </section>
+
+            <section className="summary__group">
+              <h3 className="summary__group-title">
+                {t('Компьютер и пользователь', 'Computer & user')}
+              </h3>
+              <dl className="summary__list">
+                <div className="summary__row">
+                  <dt>{t('Имя ПК', 'PC name')}</dt>
+                  <dd>{cfg.computerName || '—'}</dd>
+                </div>
+                <div className="summary__row">
+                  <dt>{t('Пользователь', 'User')}</dt>
+                  <dd>{cfg.userName || '—'}</dd>
+                </div>
+                <div className="summary__row">
+                  <dt>{t('Пароль', 'Password')}</dt>
+                  <dd>
+                    {cfg.password
+                      ? t('Задан', 'Set')
+                      : t('Без пароля', 'No password')}
+                  </dd>
+                </div>
+                <div className="summary__row">
+                  <dt>{t('Автологин', 'Auto logon')}</dt>
+                  <dd>{t('Один раз после установки', 'Once after setup')}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="summary__group">
+              <h3 className="summary__group-title">
+                {t('Системные приложения', 'System apps')}
+              </h3>
+              {cfg.keepApps.length === 0 ? (
+                <p className="summary__empty">
+                  {t(
                     'Ничего не отмечено: снять всё из списка',
                     'Nothing checked: remove everything in the list',
-                  )
-                ) : (
-                  <ul className="summary__apps">
-                    {APP_CATALOG.filter((a) => cfg.keepApps.includes(a.id)).map(
-                      (a) => (
-                        <li key={a.id}>
-                          {lang === 'ru' ? a.labelRu : a.labelEn}
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                )}
-              </dd>
-            </div>
-            <div className="summary__row summary__row--apps">
-              <dt>{t('Приложения', 'Apps')}</dt>
-              <dd>
-                {cfg.installApps.length === 0 ? (
-                  t('Не выбрано', 'None selected')
-                ) : (
-                  <ul className="summary__apps">
-                    {INSTALL_APP_CATALOG.filter((a) =>
-                      cfg.installApps.includes(a.id),
-                    ).map((a) => (
+                  )}
+                </p>
+              ) : (
+                <ul className="summary__apps">
+                  {APP_CATALOG.filter((a) => cfg.keepApps.includes(a.id)).map(
+                    (a) => (
                       <li key={a.id}>
                         {lang === 'ru' ? a.labelRu : a.labelEn}
                       </li>
-                    ))}
-                  </ul>
-                )}
-              </dd>
-            </div>
-            <div className="summary__row">
-              <dt>{t('Твики', 'Tweaks')}</dt>
-              <dd>
-                {[
-                  cfg.disableWidgets ? t('виджеты выкл.', 'widgets off') : null,
-                  cfg.disableConsumerFeatures
-                    ? t('меньше предложений', 'fewer suggestions')
-                    : null,
-                  cfg.disableTelemetry ? t('телеметрия↓', 'telemetry↓') : null,
-                  cfg.showFileExtensions ? t('расширения', 'extensions') : null,
-                  cfg.showHiddenFiles ? t('скрытые', 'hidden files') : null,
-                  cfg.taskbarSearchHidden ? t('поиск скрыт', 'search hidden') : null,
-                  cfg.taskbarAlignLeft ? t('панель слева', 'taskbar left') : null,
-                  cfg.taskbarHideTaskView
-                    ? t('без Task View', 'no Task View')
-                    : null,
-                  cfg.taskbarHideChat ? t('без чата', 'no chat') : null,
-                  cfg.taskbarHideWidgets
-                    ? t('виджеты на панели скрыты', 'taskbar widgets hidden')
-                    : null,
-                  cfg.taskbarShowSeconds ? t('секунды на часах', 'clock seconds') : null,
-                  cfg.taskbarEndTask ? t('End task', 'End task') : null,
-                  cfg.disableGameDvr ? t('Game DVR выкл.', 'Game DVR off') : null,
-                  cfg.enableLongPaths ? t('long paths', 'long paths') : null,
-                  cfg.numLockOn ? 'NumLock' : null,
-                  cfg.disableOneDrive ? t('без OneDrive', 'no OneDrive') : null,
-                  cfg.disableHibernation ? t('без гибернации', 'no hibernation') : null,
-                  cfg.expressPrivacy === 'disable-all'
-                    ? t('минимум данных', 'minimize data')
-                    : t('приватность по умолчанию', 'default privacy'),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </dd>
-            </div>
-          </dl>
+                    ),
+                  )}
+                </ul>
+              )}
+            </section>
+
+            <section className="summary__group">
+              <h3 className="summary__group-title">
+                {t('Приложения', 'Apps')}
+              </h3>
+              {cfg.installApps.length === 0 ? (
+                <p className="summary__empty">
+                  {t('Не выбрано', 'None selected')}
+                </p>
+              ) : (
+                <ul className="summary__apps">
+                  {INSTALL_APP_CATALOG.filter((a) =>
+                    cfg.installApps.includes(a.id),
+                  ).map((a) => (
+                    <li key={a.id}>
+                      {lang === 'ru' ? a.labelRu : a.labelEn}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="summary__group">
+              <h3 className="summary__group-title">{t('Твики', 'Tweaks')}</h3>
+              <ul className="summary__apps">
+                {(
+                  [
+                    cfg.disableWidgets
+                      ? t('Виджеты выкл.', 'Widgets off')
+                      : null,
+                    cfg.disableConsumerFeatures
+                      ? t('Меньше предложений', 'Fewer suggestions')
+                      : null,
+                    cfg.disableTelemetry
+                      ? t('Телеметрия↓', 'Telemetry↓')
+                      : null,
+                    cfg.showFileExtensions
+                      ? t('Расширения файлов', 'File extensions')
+                      : null,
+                    cfg.showHiddenFiles
+                      ? t('Скрытые файлы', 'Hidden files')
+                      : null,
+                    cfg.taskbarSearchHidden
+                      ? t('Поиск скрыт', 'Search hidden')
+                      : null,
+                    cfg.taskbarAlignLeft
+                      ? t('Панель слева', 'Taskbar left')
+                      : null,
+                    cfg.taskbarHideTaskView
+                      ? t('Без Task View', 'No Task View')
+                      : null,
+                    cfg.taskbarHideChat ? t('Без чата', 'No chat') : null,
+                    cfg.taskbarHideWidgets
+                      ? t('Виджеты на панели скрыты', 'Taskbar widgets hidden')
+                      : null,
+                    cfg.taskbarShowSeconds
+                      ? t('Секунды на часах', 'Clock seconds')
+                      : null,
+                    cfg.taskbarEndTask ? t('End task', 'End task') : null,
+                    cfg.disableGameDvr
+                      ? t('Game DVR выкл.', 'Game DVR off')
+                      : null,
+                    cfg.enableLongPaths
+                      ? t('Длинные пути', 'Long paths')
+                      : null,
+                    cfg.numLockOn ? 'NumLock' : null,
+                    cfg.disableOneDrive
+                      ? t('Без OneDrive', 'No OneDrive')
+                      : null,
+                    cfg.disableHibernation
+                      ? t('Без гибернации', 'No hibernation')
+                      : null,
+                    cfg.expressPrivacy === 'disable-all'
+                      ? t('Минимум данных', 'Minimize data')
+                      : t('Приватность по умолчанию', 'Default privacy'),
+                  ] as Array<string | null>
+                )
+                  .filter((x): x is string => Boolean(x))
+                  .map((label) => (
+                    <li key={label}>{label}</li>
+                  ))}
+              </ul>
+            </section>
+          </div>
           {clientErrors.length > 0 ? (
             <ul className="form-error" role="alert">
               {clientErrors.map((err) => (

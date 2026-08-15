@@ -118,9 +118,7 @@ export function SideNav({ sectionIds = DEFAULT_SECTION_IDS }: Props) {
                 const el = document.getElementById(s.id)
                 if (!el) return
                 navigate(s.id)
-                void smoothScrollTo(el).then(() => {
-                  history.replaceState(null, '', `#${s.id}`)
-                })
+                void smoothScrollTo(el)
               }}
             >
               {lang === 'ru' ? s.ru : s.en}
@@ -142,12 +140,23 @@ export function useActiveSection(ids: readonly string[]) {
   const lastCommit = useRef(0)
   const lastDocHeight = useRef(0)
 
-  const navigate = useCallback((id: string) => {
-    lockTarget.current = id
-    lockedUntil.current = performance.now() + 850
-    activeRef.current = id
-    setActiveId(id)
+  const syncHash = useCallback((id: string) => {
+    if (!id) return
+    const next = `#${id}`
+    if (window.location.hash === next) return
+    history.replaceState(null, '', next)
   }, [])
+
+  const navigate = useCallback(
+    (id: string) => {
+      lockTarget.current = id
+      lockedUntil.current = performance.now() + 850
+      activeRef.current = id
+      setActiveId(id)
+      syncHash(id)
+    },
+    [syncHash],
+  )
 
   useEffect(() => {
     if (!ids.length) return
@@ -188,6 +197,7 @@ export function useActiveSection(ids: readonly string[]) {
       lastCommit.current = now
       activeRef.current = next
       setActiveId(next)
+      syncHash(next)
     }
 
     function onScroll() {
@@ -214,7 +224,7 @@ export function useActiveSection(ids: readonly string[]) {
       window.removeEventListener('resize', onResize)
       window.cancelAnimationFrame(raf.current)
     }
-  }, [ids])
+  }, [ids, syncHash])
 
   return [activeId, navigate] as const
 }
