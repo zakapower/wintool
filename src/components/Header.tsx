@@ -88,14 +88,17 @@ export function Header() {
     <header className={`site-header${menuOpen ? ' site-header--menu-open' : ''}`}>
       <div className="site-header__inner">
         <div className="site-header__bar">
-          <Link href="/" className="brand" aria-label="Wintool">
+          <Link href="/" className="brand" aria-label="WinTools">
             <Wrench className="brand__mark" strokeWidth={2.25} aria-hidden />
-            <span className="brand__name">Wintool</span>
+            <span className="brand__name">WinTools</span>
           </Link>
 
           <nav className="site-nav" aria-label={t('Меню', 'Menu')}>
             <Link href="/" className={navClass('/', true)}>
               {t('Генератор', 'Generator')}
+            </Link>
+            <Link href="/guide" className={navClass('/guide')}>
+              {t('Инструкция', 'Guide')}
             </Link>
             <Link href="/about" className={navClass('/about')}>
               {t('О проекте', 'About')}

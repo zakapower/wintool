@@ -45,7 +45,7 @@ function applyTheme(theme: Theme) {
   const icon = document.getElementById('site-favicon') as HTMLLinkElement | null
   if (icon) {
     icon.href =
-      theme === 'dark' ? '/favicon-dark.svg?v=3' : '/favicon-light.svg?v=3'
+      theme === 'dark' ? '/favicon-dark.svg?v=4' : '/favicon-light.svg?v=4'
   }
 }
 

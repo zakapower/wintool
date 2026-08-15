@@ -13,6 +13,7 @@
   margin: 0;
   padding: 1.5rem var(--gutter) 3.5rem;
   box-sizing: border-box;
+  animation: in 0.45s ease both;
 }
 
 .generator__aside {
@@ -21,13 +22,15 @@
   width: max-content;
   position: sticky;
   top: calc(var(--header-h, 3.5rem) + 1rem);
-  z-index: 2;
+  z-index: 30;
 }
 
 .generator__main {
   grid-column: 2;
   width: 100%;
   min-width: 0;
+  position: relative;
+  z-index: 0;
 }
 
 .generator__intro {
@@ -50,16 +53,63 @@
   max-width: 100%;
 }
 
+.generator__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.95rem;
+}
+
+.generator__reset {
+  margin-top: 0;
+  min-width: 0;
+  height: 2.85rem;
+  padding: 0 1.15rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  gap: 0.5rem;
+}
+
+.generator__reset svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.generator__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.generator__import-error {
+  margin-top: 0.85rem;
+}
+
+.generator__import-error p {
+  margin: 0;
+}
+
+.generator__import-list {
+  margin: 0.55rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.generator__import-list li {
+  margin: 0.2rem 0;
+}
+
 .block {
   scroll-margin-top: calc(var(--header-h, 3.5rem) + 1rem);
   padding: 1.35rem 0 1.75rem;
   border-top: 1px solid var(--line);
   position: relative;
   z-index: 0;
-}
-
-.block:has(.select--open) {
-  z-index: 40;
 }
 
 .block__title {
@@ -99,12 +149,13 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.7rem;
   margin: 0 0 1.1rem;
   border: 0;
   padding: 0;
   min-width: 0;
   max-width: none;
+  min-inline-size: 0;
 }
 
 .field:last-child {
@@ -116,6 +167,16 @@
   font-weight: 600;
   color: var(--muted);
   white-space: nowrap;
+  padding: 0;
+  margin: 0;
+}
+
+/* legend в fieldset не участвует в flex-gap — задаём отступ явно */
+fieldset.field > legend.field__label {
+  float: none;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 0.7rem;
 }
 
 .field__control {
@@ -126,9 +187,7 @@
   background: var(--surface);
   color: var(--ink);
   font: inherit;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .field__control:hover {
@@ -138,7 +197,7 @@
 .field__control:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: none;
 }
 
 .select {
@@ -148,7 +207,7 @@
 }
 
 .select--open {
-  z-index: 50;
+  z-index: 1;
 }
 
 .select__trigger {
@@ -327,7 +386,7 @@
 }
 
 .tweak-group .field {
-  margin-top: 0.55rem;
+  margin-top: 1.15rem;
   margin-bottom: 0;
 }
 
@@ -510,6 +569,10 @@
   white-space: nowrap;
 }
 
+.summary__row dt::after {
+  content: ':';
+}
+
 .summary__row dd {
   margin: 0;
   font-size: 0.95rem;
@@ -520,10 +583,12 @@
 }
 
 .summary__row--apps {
-  padding-top: 0.4rem;
-  margin-top: 0.15rem;
-  border-top: 1px solid var(--line);
   align-items: start;
+}
+
+.summary__row--apps dd {
+  white-space: normal;
+  min-width: 0;
 }
 
 .summary__apps {
@@ -544,6 +609,7 @@
   color: var(--accent);
   font-size: 0.78rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .form-error {
@@ -714,6 +780,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .generator,
   .generator__intro,
   .block,
   .select__menu {

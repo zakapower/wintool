@@ -26,6 +26,11 @@ export type UnattendConfig = {
   showHiddenFiles: boolean
   taskbarSearchHidden: boolean
   taskbarAlignLeft: boolean
+  taskbarHideTaskView: boolean
+  taskbarHideChat: boolean
+  taskbarHideWidgets: boolean
+  taskbarShowSeconds: boolean
+  taskbarEndTask: boolean
   disableOneDrive: boolean
   disableHibernation: boolean
   disableGameDvr: boolean
@@ -79,47 +84,6 @@ export type KeepAppId =
   | 'quickAssist'
   | 'microsoftTeams'
   | 'mSTeams'
-  | 'aCGMediaPlayer'
-  | 'actiproSoftwareLLC'
-  | 'adobePhotoshopExpress'
-  | 'amazon'
-  | 'primeVideo'
-  | 'asphalt8Airborne'
-  | 'autodeskSketchBook'
-  | 'caesarsSlotsFreeCasino'
-  | 'cOOKINGFEVER'
-  | 'cyberLinkMediaSuiteEssential'
-  | 'disneyMagicKingdoms'
-  | 'x37853FC22B2CE'
-  | 'drawboardPDF'
-  | 'duolingoLearnLanguagesforFre'
-  | 'eclipseManager'
-  | 'fACEBOOK'
-  | 'farmVille2CountryEscape'
-  | 'flipboard'
-  | 'hiddenCity'
-  | 'hULUPLUS'
-  | 'iHeartRadio'
-  | 'instagram'
-  | 'bubbleWitch3Saga'
-  | 'candyCrushSaga'
-  | 'candyCrushSodaSaga'
-  | 'linkedInforWindows'
-  | 'marchofEmpires'
-  | 'netflix'
-  | 'nYTCrossword'
-  | 'oneCalendar'
-  | 'pandoraMediaInc'
-  | 'phototasticCollage'
-  | 'picsArtPhotoStudio'
-  | 'polarrPhotoEditorAcademicEdi'
-  | 'royalRevolt'
-  | 'liveWallpaper'
-  | 'slingTV'
-  | 'spotifyMusic'
-  | 'tikTok'
-  | 'tuneInRadio'
-  | 'winZipUniversal'
   | 'bingSearch'
   | 'gamingApp'
   | 'getHelp'
@@ -185,7 +149,7 @@ export type AppCatalogEntry = {
   defaultKeep?: boolean
 }
 
-/** Full AppX catalog based on Win11Debloat Apps.json (Appx method). */
+/** Microsoft / Windows inbox + OEM AppX (без сторонних Store-приложений). */
 export const APP_CATALOG: AppCatalogEntry[] = [
   { id: 'edge', labelRu: 'Microsoft Edge', labelEn: 'Microsoft Edge', defaultKeep: true },
   { id: 'clipchamp', labelRu: 'Clipchamp', labelEn: 'Clipchamp' },
@@ -230,47 +194,6 @@ export const APP_CATALOG: AppCatalogEntry[] = [
   { id: 'quickAssist', labelRu: 'Быстрая помощь', labelEn: 'Quick Assist' },
   { id: 'microsoftTeams', labelRu: 'Microsoft Teams (старый)', labelEn: 'Microsoft Teams (Old)' },
   { id: 'mSTeams', labelRu: 'Microsoft Teams', labelEn: 'Microsoft Teams (New)' },
-  { id: 'aCGMediaPlayer', labelRu: 'ACG Media Player', labelEn: 'ACG Media Player' },
-  { id: 'actiproSoftwareLLC', labelRu: 'Actipro Software', labelEn: 'Actipro Software' },
-  { id: 'adobePhotoshopExpress', labelRu: 'Adobe Photoshop Express', labelEn: 'Adobe Photoshop Express' },
-  { id: 'amazon', labelRu: 'Amazon', labelEn: 'Amazon' },
-  { id: 'primeVideo', labelRu: 'Prime Video', labelEn: 'Prime Video' },
-  { id: 'asphalt8Airborne', labelRu: 'Asphalt 8', labelEn: 'Asphalt 8' },
-  { id: 'autodeskSketchBook', labelRu: 'Autodesk SketchBook', labelEn: 'Autodesk SketchBook' },
-  { id: 'caesarsSlotsFreeCasino', labelRu: 'Caesars Slots', labelEn: 'Caesars Slots' },
-  { id: 'cOOKINGFEVER', labelRu: 'Cooking Fever', labelEn: 'Cooking Fever' },
-  { id: 'cyberLinkMediaSuiteEssential', labelRu: 'CyberLink Media Suite', labelEn: 'CyberLink Media Suite' },
-  { id: 'disneyMagicKingdoms', labelRu: 'Disney Magic Kingdoms', labelEn: 'Disney Magic Kingdoms' },
-  { id: 'x37853FC22B2CE', labelRu: 'Disney+', labelEn: 'Disney+' },
-  { id: 'drawboardPDF', labelRu: 'Drawboard PDF', labelEn: 'Drawboard PDF' },
-  { id: 'duolingoLearnLanguagesforFre', labelRu: 'Duolingo', labelEn: 'Duolingo' },
-  { id: 'eclipseManager', labelRu: 'Eclipse Manager', labelEn: 'Eclipse Manager' },
-  { id: 'fACEBOOK', labelRu: 'Facebook', labelEn: 'Facebook' },
-  { id: 'farmVille2CountryEscape', labelRu: 'FarmVille 2', labelEn: 'FarmVille 2' },
-  { id: 'flipboard', labelRu: 'Flipboard', labelEn: 'Flipboard' },
-  { id: 'hiddenCity', labelRu: 'Hidden City', labelEn: 'Hidden City' },
-  { id: 'hULUPLUS', labelRu: 'Hulu', labelEn: 'Hulu' },
-  { id: 'iHeartRadio', labelRu: 'iHeartRadio', labelEn: 'iHeartRadio' },
-  { id: 'instagram', labelRu: 'Instagram', labelEn: 'Instagram' },
-  { id: 'bubbleWitch3Saga', labelRu: 'Bubble Witch 3', labelEn: 'Bubble Witch 3' },
-  { id: 'candyCrushSaga', labelRu: 'Candy Crush Saga', labelEn: 'Candy Crush Saga' },
-  { id: 'candyCrushSodaSaga', labelRu: 'Candy Crush Soda', labelEn: 'Candy Crush Soda' },
-  { id: 'linkedInforWindows', labelRu: 'LinkedIn', labelEn: 'LinkedIn' },
-  { id: 'marchofEmpires', labelRu: 'March of Empires', labelEn: 'March of Empires' },
-  { id: 'netflix', labelRu: 'Netflix', labelEn: 'Netflix' },
-  { id: 'nYTCrossword', labelRu: 'NYT Crossword', labelEn: 'NYT Crossword' },
-  { id: 'oneCalendar', labelRu: 'One Calendar', labelEn: 'One Calendar' },
-  { id: 'pandoraMediaInc', labelRu: 'Pandora', labelEn: 'Pandora' },
-  { id: 'phototasticCollage', labelRu: 'Phototastic Collage', labelEn: 'Phototastic Collage' },
-  { id: 'picsArtPhotoStudio', labelRu: 'PicsArt', labelEn: 'PicsArt' },
-  { id: 'polarrPhotoEditorAcademicEdi', labelRu: 'Polarr Photo Editor', labelEn: 'Polarr Photo Editor' },
-  { id: 'royalRevolt', labelRu: 'Royal Revolt', labelEn: 'Royal Revolt' },
-  { id: 'liveWallpaper', labelRu: 'Live Wallpaper', labelEn: 'Live Wallpaper' },
-  { id: 'slingTV', labelRu: 'Sling TV', labelEn: 'Sling TV' },
-  { id: 'spotifyMusic', labelRu: 'Spotify', labelEn: 'Spotify' },
-  { id: 'tikTok', labelRu: 'TikTok', labelEn: 'TikTok' },
-  { id: 'tuneInRadio', labelRu: 'TuneIn Radio', labelEn: 'TuneIn Radio' },
-  { id: 'winZipUniversal', labelRu: 'WinZip', labelEn: 'WinZip' },
   { id: 'bingSearch', labelRu: 'Bing Search', labelEn: 'Bing Search' },
   { id: 'gamingApp', labelRu: 'Xbox Game Bar / Gaming App', labelEn: 'Xbox Gaming App' },
   { id: 'getHelp', labelRu: 'Получить помощь', labelEn: 'Get Help' },

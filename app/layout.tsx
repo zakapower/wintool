@@ -8,7 +8,7 @@ import { getRequestLang } from '@/lib/request-lang'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Wintool',
+  title: 'WinTools',
   description:
     'Build an autounattend.xml answer file for Windows 11 setup.',
 }
@@ -21,7 +21,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link
           rel="icon"
           type="image/svg+xml"
-          href="/favicon-dark.svg?v=3"
+          href="/favicon-dark.svg?v=4"
           id="site-favicon"
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -32,7 +32,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if('scrollRestoration'in history)history.scrollRestoration='manual';var th=localStorage.getItem('wintool-theme');if(th!=='dark'&&th!=='light'){th='dark'}document.documentElement.dataset.theme=th;var icon=document.getElementById('site-favicon');if(icon){icon.href=th==='dark'?'/favicon-dark.svg?v=3':'/favicon-light.svg?v=3'}}catch(e){document.documentElement.dataset.theme='dark'}`,
+            __html: `try{if('scrollRestoration'in history)history.scrollRestoration='manual';var th=localStorage.getItem('wintool-theme');if(th!=='dark'&&th!=='light'){th='dark'}document.documentElement.dataset.theme=th;var icon=document.getElementById('site-favicon');if(icon){icon.href=th==='dark'?'/favicon-dark.svg?v=4':'/favicon-light.svg?v=4'}}catch(e){document.documentElement.dataset.theme='dark'}`,
           }}
         />
       </head>

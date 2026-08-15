@@ -9,9 +9,13 @@ export function DocumentTitle() {
   const pathname = usePathname()
 
   useEffect(() => {
-    document.title = pathname.startsWith('/about')
-      ? t('О проекте', 'About')
-      : 'Wintool'
+    if (pathname.startsWith('/guide')) {
+      document.title = t('Инструкция', 'Guide')
+    } else if (pathname.startsWith('/about')) {
+      document.title = t('О проекте', 'About')
+    } else {
+      document.title = 'WinTools'
+    }
   }, [pathname, t])
 
   return null

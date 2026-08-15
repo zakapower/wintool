@@ -51,7 +51,8 @@
   margin-top: 0.75rem;
 }
 
-.about__prose ul {
+.about__prose ul,
+.about__prose ol {
   margin: 0;
   padding: 0 0 0 1.15rem;
   display: flex;

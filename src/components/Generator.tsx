@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Download } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Download, RotateCcw, Upload } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { defaultConfig } from '@/lib/defaults'
 import { validateConfig } from '@/lib/buildUnattendXml'
+import { parseUnattendXml } from '@/lib/parseUnattendXml'
 import {
   APP_CATALOG,
   NAV_SECTIONS,
@@ -22,6 +23,9 @@ export function Generator() {
   const [cfg, setCfg] = useState<UnattendConfig>(defaultConfig)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importUnsupported, setImportUnsupported] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeId, setActiveId] = useActiveSection(SECTION_IDS)
   const clientErrors = useMemo(() => validateConfig(cfg, lang), [cfg, lang])
 
@@ -121,6 +125,47 @@ export function Generator() {
     window.setTimeout(() => focusable?.focus({ preventScroll: true }), 350)
   }
 
+  function resetAll() {
+    setCfg({
+      ...defaultConfig,
+      keyboards: [...defaultConfig.keyboards],
+      keepApps: [...defaultConfig.keepApps],
+    })
+    setError(null)
+    setImportError(null)
+    setImportUnsupported([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function onImportFile(file: File | undefined) {
+    if (!file) return
+    setImportError(null)
+    setImportUnsupported([])
+    setError(null)
+    try {
+      const text = await file.text()
+      const result = parseUnattendXml(text, lang)
+      if (!result.ok) {
+        setImportError(result.error)
+        setImportUnsupported(result.unsupported)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        return
+      }
+      setCfg({
+        ...result.config,
+        keyboards: [...result.config.keyboards],
+        keepApps: [...result.config.keepApps],
+      })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch {
+      setImportError(
+        t('Не удалось прочитать файл', 'Could not read the file'),
+      )
+      setImportUnsupported([])
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   async function download() {
     const errs = validateConfig(cfg, lang)
     if (errs.length) {
@@ -177,6 +222,47 @@ export function Generator() {
               'Use the sections on the left, download the file, and put it in the root of your Windows install USB.',
             )}
           </p>
+          <div className="generator__actions">
+            <button
+              type="button"
+              className="btn btn--ghost generator__reset"
+              onClick={resetAll}
+            >
+              <RotateCcw size={18} strokeWidth={2.25} aria-hidden />
+              {t('Сбросить', 'Reset')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost generator__reset"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={18} strokeWidth={2.25} aria-hidden />
+              {t('Загрузить XML', 'Upload XML')}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xml,text/xml,application/xml"
+              className="generator__file"
+              aria-label={t(
+                'Загрузить свой autounattend.xml',
+                'Upload your autounattend.xml',
+              )}
+              onChange={(e) => void onImportFile(e.target.files?.[0])}
+            />
+          </div>
+          {importError ? (
+            <div className="form-error generator__import-error" role="alert">
+              <p>{importError}</p>
+              {importUnsupported.length > 0 ? (
+                <ul className="generator__import-list">
+                  {importUnsupported.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
         <section id="language" className="block">
@@ -438,13 +524,13 @@ export function Generator() {
           <h2 className="block__title">{t('Приложения', 'Apps')}</h2>
           <p className="block__hint">
             {t(
-              'Отметь, что оставить. Снятые пункты удалятся при первом входе (AppX). Список как у Win11Debloat: Microsoft + типичный OEM/Store-bloat. Edge можно снять.',
-              'Check what to keep. Unchecked apps are removed on first logon (AppX). Catalog matches Win11Debloat: Microsoft + common OEM/Store bloat. Edge can be removed.',
+              'Отметь, что оставить. Снятые пункты удалятся при первом входе (AppX). Список: встроенные приложения Microsoft/Windows и типичный OEM. Edge можно снять.',
+              'Check what to keep. Unchecked apps are removed on first logon (AppX). Catalog: Microsoft/Windows inbox apps and common OEM. Edge can be removed.',
             )}
           </p>
           <div className="apps-toolbar">
             <button type="button" className="btn btn--ghost" onClick={keepEssentialApps}>
-              {t('Только нужное', 'Essentials only')}
+              {t('Базовый набор', 'Basic set')}
             </button>
             <button type="button" className="btn btn--ghost" onClick={keepAllApps}>
               {t('Добавить все', 'Select all')}
@@ -604,6 +690,67 @@ export function Generator() {
                   {t('Панель задач слева', 'Taskbar align left')}
                 </span>
               </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.taskbarHideTaskView}
+                  onChange={(e) =>
+                    patch('taskbarHideTaskView', e.target.checked)
+                  }
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Скрыть «Просмотр задач»', 'Hide Task View')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.taskbarHideChat}
+                  onChange={(e) => patch('taskbarHideChat', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Скрыть чат / Teams', 'Hide Chat / Teams')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.taskbarHideWidgets}
+                  onChange={(e) =>
+                    patch('taskbarHideWidgets', e.target.checked)
+                  }
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Скрыть виджеты на панели', 'Hide taskbar widgets')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.taskbarShowSeconds}
+                  onChange={(e) =>
+                    patch('taskbarShowSeconds', e.target.checked)
+                  }
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Секунды на часах', 'Show seconds on clock')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.taskbarEndTask}
+                  onChange={(e) => patch('taskbarEndTask', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('«Завершить задачу» в меню', 'End task in taskbar menu')}
+                </span>
+              </label>
             </div>
           </div>
 
@@ -726,34 +873,27 @@ export function Generator() {
                   : ` · ${t('без пароля', 'no password')}`}
               </dd>
             </div>
-            <div className="summary__row">
+            <div className="summary__row summary__row--apps">
               <dt>{t('Приложения', 'Apps')}</dt>
               <dd>
-                {cfg.keepApps.length === 0
-                  ? t(
-                      'Ничего не отмечено — снять всё из списка',
-                      'Nothing checked — remove everything in the list',
-                    )
-                  : t(
-                      `Оставить ${cfg.keepApps.length} из ${APP_CATALOG.length}`,
-                      `Keep ${cfg.keepApps.length} of ${APP_CATALOG.length}`,
-                    )}
-              </dd>
-            </div>
-            {cfg.keepApps.length > 0 && (
-              <div className="summary__row summary__row--apps">
-                <dt>{t('Список', 'List')}</dt>
-                <dd>
+                {cfg.keepApps.length === 0 ? (
+                  t(
+                    'Ничего не отмечено: снять всё из списка',
+                    'Nothing checked: remove everything in the list',
+                  )
+                ) : (
                   <ul className="summary__apps">
                     {APP_CATALOG.filter((a) => cfg.keepApps.includes(a.id)).map(
                       (a) => (
-                        <li key={a.id}>{lang === 'ru' ? a.labelRu : a.labelEn}</li>
+                        <li key={a.id}>
+                          {lang === 'ru' ? a.labelRu : a.labelEn}
+                        </li>
                       ),
                     )}
                   </ul>
-                </dd>
-              </div>
-            )}
+                )}
+              </dd>
+            </div>
             <div className="summary__row">
               <dt>{t('Твики', 'Tweaks')}</dt>
               <dd>
@@ -767,6 +907,15 @@ export function Generator() {
                   cfg.showHiddenFiles ? t('скрытые', 'hidden files') : null,
                   cfg.taskbarSearchHidden ? t('поиск скрыт', 'search hidden') : null,
                   cfg.taskbarAlignLeft ? t('панель слева', 'taskbar left') : null,
+                  cfg.taskbarHideTaskView
+                    ? t('без Task View', 'no Task View')
+                    : null,
+                  cfg.taskbarHideChat ? t('без чата', 'no chat') : null,
+                  cfg.taskbarHideWidgets
+                    ? t('виджеты на панели скрыты', 'taskbar widgets hidden')
+                    : null,
+                  cfg.taskbarShowSeconds ? t('секунды на часах', 'clock seconds') : null,
+                  cfg.taskbarEndTask ? t('End task', 'End task') : null,
                   cfg.disableGameDvr ? t('Game DVR выкл.', 'Game DVR off') : null,
                   cfg.enableLongPaths ? t('long paths', 'long paths') : null,
                   cfg.numLockOn ? 'NumLock' : null,
@@ -811,12 +960,6 @@ export function Generator() {
               ? t('Генерация…', 'Generating…')
               : t('Скачать autounattend.xml', 'Download autounattend.xml')}
           </button>
-          <p className="block__hint">
-            {t(
-              'Скопируй файл в корень флешки рядом с setup.exe. Ключ и пароль не сохраняются на сервере.',
-              'Copy the file to the USB root next to setup.exe. Keys and passwords are not stored on the server.',
-            )}
-          </p>
         </section>
       </div>
     </div>

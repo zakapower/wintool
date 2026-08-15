@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useApp } from '@/context/AppContext'
 import './About.css'
 
@@ -14,8 +15,8 @@ export function AboutView() {
         <h1>{t('О проекте', 'About')}</h1>
         <p className="about__lead">
           {t(
-            'Зачем нужен Wintool и как им пользоваться.',
-            'What Wintool is for and how to use it.',
+            'Зачем нужен WinTools и как им пользоваться.',
+            'What WinTools is for and how to use it.',
           )}
         </p>
       </header>
@@ -25,8 +26,8 @@ export function AboutView() {
           <h2>{t('Что это', 'What this is')}</h2>
           <p>
             {t(
-              'Wintool — генератор файла autounattend.xml для автоустановки Windows 10/11. Собираешь ответы мастера установки в удобном UI и скачиваешь готовый XML на флешку рядом с образом.',
-              'Wintool generates an autounattend.xml answer file for Windows 10/11 setup. Configure options in a simple UI, download the XML, and place it next to the install image on a USB stick.',
+              'WinTools генерирует файл autounattend.xml для автоустановки Windows 10/11. Собираешь ответы мастера установки в удобном UI и скачиваешь готовый XML на флешку рядом с образом.',
+              'WinTools generates an autounattend.xml answer file for Windows 10/11 setup. Configure options in a simple UI, download the XML, and place it next to the install image on a USB stick.',
             )}
           </p>
         </section>
@@ -71,9 +72,10 @@ export function AboutView() {
           <h2>{t('Как пользоваться', 'How to use')}</h2>
           <p>
             {t(
-              'Пройди блоки на главной, проверь предупреждения по диску и скачай autounattend.xml. Положи файл в корень установочной флешки — Setup подхватит его при загрузке.',
-              'Go through the home page blocks, double-check disk warnings, and download autounattend.xml. Put the file in the root of the install USB — Setup will pick it up on boot.',
-            )}
+              'Кратко: пройди блоки на главной, проверь диск и скачай autounattend.xml. Подробный разбор (что нужно для переустановки, как подготовить флешку и что делать при ошибках) во вкладке',
+              'In short: go through the home page blocks, check the disk settings, and download autounattend.xml. A full walkthrough (what you need to reinstall, how to prepare the USB, and troubleshooting) is in the',
+            )}{' '}
+            <Link href="/guide">{t('Инструкция', 'Guide')}</Link>.
           </p>
         </section>
 
@@ -82,7 +84,7 @@ export function AboutView() {
           <p>
             {t(
               'Настройки живут в браузере до скачивания. Сервер только собирает XML по запросу и ничего не сохраняет: ни ключей, ни паролей, ни имени ПК.',
-              'Settings stay in the browser until download. The server only builds XML on request and stores nothing — no keys, passwords, or PC names.',
+              'Settings stay in the browser until download. The server only builds XML on request and stores nothing: no keys, passwords, or PC names.',
             )}
           </p>
         </section>
@@ -91,7 +93,7 @@ export function AboutView() {
           <h2>{t('Открытость', 'Openness')}</h2>
           <p>
             {t(
-              'Проект в семье соседних утилит. Профиль автора — на',
+              'Проект в семье соседних утилит. Профиль автора на',
               'Part of the same family of small tools. Author profile on',
             )}{' '}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">

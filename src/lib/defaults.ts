@@ -6,7 +6,7 @@ import {
 
 export const ALL_KEEP_APPS: KeepAppId[] = APP_CATALOG.map((a) => a.id)
 
-/** Essentials for the “Только нужное” button (not applied on first load). */
+/** Same set as the “Базовый набор” button / initial defaults. */
 export const DEFAULT_KEEP_APPS: KeepAppId[] = APP_CATALOG.filter(
   (a) => a.defaultKeep || a.locked,
 ).map((a) => a.id)
@@ -26,7 +26,7 @@ export const defaultConfig: UnattendConfig = {
   userName: '',
   password: '',
   autoLogon: false,
-  keepApps: [],
+  keepApps: [...DEFAULT_KEEP_APPS],
   disableWidgets: false,
   disableConsumerFeatures: false,
   expressPrivacy: 'default',
@@ -34,6 +34,11 @@ export const defaultConfig: UnattendConfig = {
   showHiddenFiles: false,
   taskbarSearchHidden: false,
   taskbarAlignLeft: false,
+  taskbarHideTaskView: false,
+  taskbarHideChat: false,
+  taskbarHideWidgets: false,
+  taskbarShowSeconds: false,
+  taskbarEndTask: false,
   disableOneDrive: false,
   disableHibernation: false,
   disableGameDvr: false,

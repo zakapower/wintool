@@ -179,6 +179,31 @@ function bloatScript(cfg: UnattendConfig): string {
       'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v TaskbarAl /t REG_DWORD /d 0 /f',
     )
   }
+  if (cfg.taskbarHideTaskView) {
+    lines.push(
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v ShowTaskViewButton /t REG_DWORD /d 0 /f',
+    )
+  }
+  if (cfg.taskbarHideChat) {
+    lines.push(
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v TaskbarMn /t REG_DWORD /d 0 /f',
+    )
+  }
+  if (cfg.taskbarHideWidgets) {
+    lines.push(
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v TaskbarDa /t REG_DWORD /d 0 /f',
+    )
+  }
+  if (cfg.taskbarShowSeconds) {
+    lines.push(
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v ShowSecondsInSystemClock /t REG_DWORD /d 1 /f',
+    )
+  }
+  if (cfg.taskbarEndTask) {
+    lines.push(
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings" /v TaskbarEndTask /t REG_DWORD /d 1 /f',
+    )
+  }
   if (cfg.disableGameDvr) {
     lines.push(
       'reg add "HKCU\\System\\GameConfigStore" /v GameDVR_Enabled /t REG_DWORD /d 0 /f',
@@ -296,7 +321,7 @@ export function buildUnattendXml(cfg: UnattendConfig): string {
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
-          <Description>Wintool debloat</Description>
+          <Description>WinTools debloat</Description>
           <CommandLine>${esc(bloatScript(cfg))}</CommandLine>
         </SynchronousCommand>
       </FirstLogonCommands>`
@@ -319,7 +344,7 @@ export function buildUnattendXml(cfg: UnattendConfig): string {
       <UserData>
         <AcceptEula>true</AcceptEula>
         <FullName>${user}</FullName>
-        <Organization>Wintool</Organization>
+        <Organization>WinTools</Organization>
       </UserData>
     </component>
   </settings>
