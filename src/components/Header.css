@@ -5,7 +5,6 @@
   background: var(--bg);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
-  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .site-header__inner {
@@ -173,6 +172,11 @@
 .ctrl--lang-en .ctrl__face--ru {
   opacity: 1;
   transform: scale(1);
+}
+
+.ctrl__face--moon,
+.ctrl__face--sun {
+  transition: none;
 }
 
 .ctrl__face--moon {

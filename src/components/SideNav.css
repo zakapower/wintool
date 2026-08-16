@@ -92,6 +92,7 @@
     min-width: 0;
     max-width: none;
     box-shadow: 0 8px 18px color-mix(in srgb, var(--bg) 55%, transparent);
+    box-sizing: border-box;
   }
 
   .side-nav__title {
@@ -106,6 +107,24 @@
     border: 0;
   }
 
+  .side-nav__track {
+    min-width: 0;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 max(var(--gutter), env(safe-area-inset-left, 0px)),
+      #000 calc(100% - max(var(--gutter), env(safe-area-inset-right, 0px))),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 max(var(--gutter), env(safe-area-inset-left, 0px)),
+      #000 calc(100% - max(var(--gutter), env(safe-area-inset-right, 0px))),
+      transparent 100%
+    );
+  }
+
   .side-nav__list {
     flex-direction: row;
     flex-wrap: nowrap;
@@ -116,16 +135,19 @@
     padding: 0 max(var(--gutter), env(safe-area-inset-right, 0px)) 0.1rem
       max(var(--gutter), env(safe-area-inset-left, 0px));
     scroll-snap-type: x proximity;
+    scroll-padding-inline: max(var(--gutter), env(safe-area-inset-left, 0px));
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
 
-  .side-nav__track {
-    min-width: 0;
-  }
-
   .side-nav__list::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Keep end padding scrollable in WebKit */
+  .side-nav__list::after {
+    content: '';
+    flex: 0 0 max(var(--gutter), env(safe-area-inset-right, 0px));
   }
 
   .side-nav__pill {
@@ -141,6 +163,7 @@
     background: var(--surface);
     white-space: nowrap;
     scroll-snap-align: start;
+    scroll-margin-inline: 0.35rem;
   }
 
   .side-nav__link--active {

@@ -60,7 +60,9 @@ function readStoredTheme(): Theme {
 }
 
 function applyTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme
+  const root = document.documentElement
+  root.classList.add('theme-switching')
+  root.dataset.theme = theme
   try {
     localStorage.setItem('wintool-theme', theme)
   } catch {
@@ -71,6 +73,12 @@ function applyTheme(theme: Theme) {
     icon.href =
       theme === 'dark' ? '/favicon-dark.svg?v=4' : '/favicon-light.svg?v=4'
   }
+  // Drop the class after paint so hover transitions keep working.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      root.classList.remove('theme-switching')
+    })
+  })
 }
 
 function writeLangCookie(lang: Lang) {

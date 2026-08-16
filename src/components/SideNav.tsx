@@ -143,14 +143,21 @@ export function SideNav({ sectionIds = DEFAULT_SECTION_IDS }: Props) {
     const link = linkRefs.current.get(activeId)
     const list = listRef.current
     if (!link || !list) return
+    if (!window.matchMedia('(max-width: 860px)').matches) return
+
     const listRect = list.getBoundingClientRect()
     const linkRect = link.getBoundingClientRect()
-    const left =
-      list.scrollLeft +
-      (linkRect.left - listRect.left) -
-      (listRect.width - linkRect.width) / 2
-    list.scrollTo({
-      left: Math.max(0, left),
+    const pad = 12
+    let delta = 0
+    if (linkRect.left < listRect.left + pad) {
+      delta = linkRect.left - listRect.left - pad
+    } else if (linkRect.right > listRect.right - pad) {
+      delta = linkRect.right - listRect.right + pad
+    } else {
+      return
+    }
+    list.scrollBy({
+      left: delta,
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     })
   }, [activeId])

@@ -2,7 +2,7 @@
   --font: var(--font-sans), 'Segoe UI', sans-serif;
   --font-display: var(--font-display-face), Georgia, serif;
   --max: 72rem;
-  --gutter: 1rem;
+  --gutter: 0.65rem;
   --header-h: calc(1.5rem + 2.35rem + 1px);
 
   --bg: #f4f6fa;
@@ -107,6 +107,14 @@ select:focus-visible {
 
 html.menu-open {
   overflow: hidden;
+}
+
+/* Instant theme swap: kill color transitions while CSS variables change */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
 }
 
 .app-shell {
