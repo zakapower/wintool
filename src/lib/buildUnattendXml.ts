@@ -1,6 +1,9 @@
 import type { UnattendConfig } from './types.ts'
 import { BLOAT_PACKAGES } from './bloatPackages.ts'
-import { INSTALL_APP_CATALOG } from './installApps.ts'
+import {
+  INSTALL_APP_CATALOG,
+  VCREDIST_X86_WINGET_ID,
+} from './installApps.ts'
 import {
   MIN_DATA_GB,
   MIN_VOLUMES,
@@ -13,13 +16,6 @@ const EDITION_NAME: Record<UnattendConfig['edition'], string> = {
   Pro: 'Windows 11 Pro',
   Home: 'Windows 11 Home',
   Enterprise: 'Windows 11 Enterprise',
-}
-
-const GENERIC_KEYS: Record<UnattendConfig['edition'], string> = {
-  // Generic keys install edition but do not activate
-  Pro: 'VK7JG-NPHTM-C97JM-9MPGT-3V66T',
-  Home: 'YTMG3-N6DKC-DKB77-7M9GH-8HVX7',
-  Enterprise: 'XGVPP-NMH47-7TTHJ-W3FW7-8HV2C',
 }
 
 function esc(s: string): string {
@@ -42,12 +38,8 @@ function inputLocale(cfg: UnattendConfig): string {
 }
 
 function productKeyValue(cfg: UnattendConfig): string {
-  if (cfg.productKeyMode === 'none') return ''
-  const key =
-    cfg.productKeyMode === 'custom'
-      ? cfg.productKeyCustom.trim()
-      : GENERIC_KEYS[cfg.edition]
-  return key
+  if (cfg.productKeyMode !== 'custom') return ''
+  return cfg.productKeyCustom.trim()
 }
 
 function productKeyUserDataXml(cfg: UnattendConfig): string {
@@ -100,6 +92,12 @@ function runSynchronousXml(cfg: UnattendConfig): string {
       path: lab,
     },
   ]
+  if (cfg.disableBitLocker) {
+    cmds.push({
+      desc: 'WinTools BitLocker',
+      path: 'cmd.exe /c "reg.exe add HKLM\\SYSTEM\\CurrentControlSet\\Control\\BitLocker /v PreventDeviceEncryption /t REG_DWORD /d 1 /f"',
+    })
+  }
   if (cfg.diskMode === 'wipe0') {
     cmds.push({
       desc: 'WinTools disk',
@@ -228,19 +226,60 @@ function bloatScript(cfg: UnattendConfig): string {
   if (cfg.disableHibernation) {
     lines.push('powercfg /h off')
   }
+  if (cfg.darkTheme) {
+    lines.push(
+      'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f',
+      'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f',
+    )
+  }
+  if (cfg.classicContextMenu) {
+    lines.push(
+      'reg add "HKCU\\Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32" /f /ve',
+    )
+  }
+  if (cfg.disableCopilot) {
+    lines.push(
+      'reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Copilot" /v TurnOffWindowsCopilot /t REG_DWORD /d 1 /f',
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v ShowCopilotButton /t REG_DWORD /d 0 /f',
+    )
+  }
+  if (cfg.disableRecall) {
+    lines.push(
+      'reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI" /v DisableAIDataAnalysis /t REG_DWORD /d 1 /f',
+    )
+  }
+  if (cfg.disableStartAds) {
+    lines.push(
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager" /v SystemPaneSuggestionsEnabled /t REG_DWORD /d 0 /f',
+      'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v Start_IrisRecommendations /t REG_DWORD /d 0 /f',
+    )
+  }
+  if (cfg.highPerformance) {
+    lines.push('powercfg /setactive SCHEME_MAX')
+  }
+  if (cfg.disableBitLocker) {
+    lines.push(
+      'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\BitLocker" /v PreventDeviceEncryption /t REG_DWORD /d 1 /f',
+    )
+  }
 
   const toInstall = INSTALL_APP_CATALOG.filter((a) =>
     cfg.installApps.includes(a.id),
   )
-  if (toInstall.length) {
+  const wingetIds: string[] = []
+  for (const a of toInstall) {
+    wingetIds.push(a.wingetId)
+    if (a.id === 'vcredist') wingetIds.push(VCREDIST_X86_WINGET_ID)
+  }
+  if (wingetIds.length) {
     const drive = (cfg.installDrive || 'C').toUpperCase().slice(0, 1)
     const locationArg =
       drive && drive !== 'C' ? ` --location "${drive}:\\Apps"` : ''
     lines.push(
       '$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")',
-      ...toInstall.map(
-        (a) =>
-          `winget install -e --id ${a.wingetId} --accept-package-agreements --accept-source-agreements --disable-interactivity${locationArg}`,
+      ...wingetIds.map(
+        (id) =>
+          `winget install -e --id ${id} --accept-package-agreements --accept-source-agreements --disable-interactivity${locationArg}`,
       ),
     )
   }
@@ -249,6 +288,25 @@ function bloatScript(cfg: UnattendConfig): string {
   const ps = lines.join('; ')
   const b64 = utf16LeToBase64(ps)
   return `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${b64}`
+}
+
+function localAccountXml(
+  name: string,
+  password: string,
+  admin: boolean,
+): string {
+  const user = esc(name.trim())
+  const pass = esc(password)
+  const group = admin ? 'Administrators' : 'Users'
+  return `<LocalAccount wcm:action="add">
+            <Name>${user}</Name>
+            <DisplayName>${user}</DisplayName>
+            <Group>${group}</Group>
+            <Password>
+              <Value>${pass}</Value>
+              <PlainText>true</PlainText>
+            </Password>
+          </LocalAccount>`
 }
 
 function utf16LeToBase64(text: string): string {
@@ -266,6 +324,11 @@ function utf16LeToBase64(text: string): string {
     binary += String.fromCharCode(bytes[i]!)
   }
   return btoa(binary)
+}
+
+function isValidUserName(name: string): boolean {
+  const trimmed = name.trim()
+  return trimmed.length > 0 && trimmed.length <= 20 && !/[/\\[\]:;|=,+*?<>"]/.test(trimmed)
 }
 
 export type ConfigError = {
@@ -307,10 +370,7 @@ export function validateConfig(
       message: t('Укажите имя пользователя', 'Enter a user name'),
       targetId: 'field-user-name',
     })
-  } else if (
-    userName.trim().length > 20 ||
-    /[/\\[\]:;|=,+*?<>"]/.test(userName)
-  ) {
+  } else if (!isValidUserName(userName)) {
     errors.push({
       message: t(
         'Имя пользователя: до 20 символов, без / \\ [ ] : ; | = , + * ? < > "',
@@ -318,6 +378,37 @@ export function validateConfig(
       ),
       targetId: 'field-user-name',
     })
+  }
+  if (cfg.extraUserEnabled) {
+    const extraName =
+      typeof cfg.extraUserName === 'string' ? cfg.extraUserName : ''
+    if (!extraName.trim()) {
+      errors.push({
+        message: t(
+          'Укажите имя второго пользователя',
+          'Enter a name for the second user',
+        ),
+        targetId: 'field-extra-user-name',
+      })
+    } else if (!isValidUserName(extraName)) {
+      errors.push({
+        message: t(
+          'Имя второго пользователя: до 20 символов, без спецсимволов',
+          'Second user name: up to 20 chars, no special characters',
+        ),
+        targetId: 'field-extra-user-name',
+      })
+    } else if (
+      extraName.trim().toLowerCase() === userName.trim().toLowerCase()
+    ) {
+      errors.push({
+        message: t(
+          'Имена пользователей должны отличаться',
+          'User names must be different',
+        ),
+        targetId: 'field-extra-user-name',
+      })
+    }
   }
   if (cfg.diskMode === 'wipe0') {
     // Do not fill missing sizes - empty fields must surface as errors.
@@ -511,15 +602,16 @@ export function buildUnattendXml(cfg: UnattendConfig): string {
           <PlainText>true</PlainText>
         </AdministratorPassword>
         <LocalAccounts>
-          <LocalAccount wcm:action="add">
-            <Name>${user}</Name>
-            <DisplayName>${user}</DisplayName>
-            <Group>Administrators</Group>
-            <Password>
-              <Value>${pass}</Value>
-              <PlainText>true</PlainText>
-            </Password>
-          </LocalAccount>
+          ${localAccountXml(cfg.userName, cfg.password, cfg.primaryUserAdmin !== false)}
+          ${
+            cfg.extraUserEnabled
+              ? localAccountXml(
+                  cfg.extraUserName,
+                  cfg.extraUserPassword ?? '',
+                  Boolean(cfg.extraUserAdmin),
+                )
+              : ''
+          }
         </LocalAccounts>
       </UserAccounts>
       ${autoLogon}

@@ -87,6 +87,20 @@ test('parseUnattendXml accepts interactive disk', () => {
   assert.equal(result.config.diskMode, 'interactive')
 })
 
+test('parseUnattendXml treats Microsoft generic keys as no key', () => {
+  const xml = buildUnattendXml({
+    ...defaultConfig,
+    computerName: 'PC-ONE',
+    userName: 'Admin',
+  }).replace(/<Key>\s*<\/Key>/, '<Key>VK7JG-NPHTM-C97JM-9MPGT-3V66T</Key>')
+  const result = parseUnattendXml(xml)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.config.productKeyMode, 'none')
+  assert.equal(result.config.productKeyCustom, '')
+  assert.equal(result.config.edition, 'Pro')
+})
+
 test('parseUnattendXml rejects unsupported components', () => {
   const xml = `<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
@@ -124,4 +138,56 @@ test('parseUnattendXml rejects unknown FirstLogon description', () => {
   assert.equal(result.ok, false)
   if (result.ok) return
   assert.ok(result.unsupported.some((u) => /FirstLogon/i.test(u)))
+})
+
+test('parseUnattendXml round-trips extra user and tweaks', () => {
+  const xml = buildUnattendXml({
+    ...defaultConfig,
+    computerName: 'PC-TWO',
+    userName: 'Admin',
+    password: 'a',
+    primaryUserAdmin: true,
+    extraUserEnabled: true,
+    extraUserName: 'Kids',
+    extraUserPassword: 'b',
+    extraUserAdmin: false,
+    darkTheme: true,
+    classicContextMenu: true,
+    disableCopilot: true,
+    disableRecall: true,
+    disableStartAds: true,
+    highPerformance: true,
+    disableBitLocker: true,
+    installApps: ['vcredist'],
+  })
+  const result = parseUnattendXml(xml)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.config.userName, 'Admin')
+  assert.equal(result.config.primaryUserAdmin, true)
+  assert.equal(result.config.extraUserEnabled, true)
+  assert.equal(result.config.extraUserName, 'Kids')
+  assert.equal(result.config.extraUserPassword, 'b')
+  assert.equal(result.config.extraUserAdmin, false)
+  assert.equal(result.config.darkTheme, true)
+  assert.equal(result.config.classicContextMenu, true)
+  assert.equal(result.config.disableCopilot, true)
+  assert.equal(result.config.disableRecall, true)
+  assert.equal(result.config.disableStartAds, true)
+  assert.equal(result.config.highPerformance, true)
+  assert.equal(result.config.disableBitLocker, true)
+  assert.ok(result.config.installApps.includes('vcredist'))
+})
+
+test('parseUnattendXml accepts a standard Users account', () => {
+  const xml = buildUnattendXml({
+    ...defaultConfig,
+    computerName: 'PC-STD',
+    userName: 'Alex',
+    primaryUserAdmin: false,
+  })
+  const result = parseUnattendXml(xml)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.config.primaryUserAdmin, false)
 })

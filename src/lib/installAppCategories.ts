@@ -9,6 +9,7 @@ export type InstallAppCategoryId =
   | 'chat'
   | 'media'
   | 'notes'
+  | 'runtimes'
 
 export const INSTALL_APP_CATEGORIES: Array<{
   id: InstallAppCategoryId
@@ -22,6 +23,7 @@ export const INSTALL_APP_CATEGORIES: Array<{
   { id: 'chat', ru: 'Связь', en: 'Chat' },
   { id: 'media', ru: 'Медиа и игры', en: 'Media & games' },
   { id: 'notes', ru: 'Заметки', en: 'Notes' },
+  { id: 'runtimes', ru: 'Офис и среды', en: 'Office & runtimes' },
 ]
 
 const BY_ID: Record<InstallAppId, InstallAppCategoryId> = {
@@ -56,6 +58,9 @@ const BY_ID: Record<InstallAppId, InstallAppCategoryId> = {
   spotify: 'media',
   obsidian: 'notes',
   notion: 'notes',
+  office: 'runtimes',
+  dotnet8: 'runtimes',
+  vcredist: 'runtimes',
 }
 
 export function installAppCategory(id: InstallAppId): InstallAppCategoryId {

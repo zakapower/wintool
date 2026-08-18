@@ -103,9 +103,10 @@ html.menu-open {
   overflow: hidden;
 }
 
-/* Instant theme swap: kill color transitions while CSS variables change */
+/* Instant theme swap: kill color transitions while CSS variables change.
+   Keep header face icons animating (sun/moon, EN/RU). */
 html.theme-switching,
-html.theme-switching *,
+html.theme-switching *:not(.ctrl__face),
 html.theme-switching *::before,
 html.theme-switching *::after {
   transition: none !important;

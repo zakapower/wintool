@@ -11,6 +11,7 @@ export const DEFAULT_VOLUMES: DiskVolume[] = [
 ]
 
 const LETTERS = ['C', 'D', 'E', 'F', 'G'] as const
+const DEFAULT_LABELS = ['Windows', 'Data', 'Games', 'Files', 'Extra'] as const
 
 export function nextVolumeLetter(volumes: DiskVolume[]): string {
   const used = new Set(volumes.map((v) => v.letter.toUpperCase()))
@@ -18,6 +19,32 @@ export function nextVolumeLetter(volumes: DiskVolume[]): string {
     if (!used.has(L)) return L
   }
   return 'Z'
+}
+
+export function nextVolumeLabel(volumes: DiskVolume[]): string {
+  const used = new Set(volumes.map((v) => v.label.trim().toLowerCase()))
+  for (const name of DEFAULT_LABELS) {
+    if (!used.has(name.toLowerCase())) return name
+  }
+  return nextVolumeLetter(volumes)
+}
+
+/** Add a volume at the bottom as the new remainder. Former remainder gets 50 GB. */
+export function appendVolume(volumes: DiskVolume[]): DiskVolume[] {
+  if (volumes.length >= MAX_VOLUMES) {
+    return volumes.map((v) => ({ ...v }))
+  }
+  const list = volumes.map((v) => ({ ...v }))
+  const last = list.length - 1
+  if (last >= 0 && list[last].sizeGb == null) {
+    list[last] = { ...list[last], sizeGb: 50 }
+  }
+  list.push({
+    letter: nextVolumeLetter(list),
+    label: nextVolumeLabel(list),
+    sizeGb: null,
+  })
+  return list
 }
 
 export function normalizeVolumes(volumes: DiskVolume[]): DiskVolume[] {

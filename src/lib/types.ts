@@ -20,7 +20,7 @@ export type UnattendConfig = {
   keyboards: Array<'ru' | 'en'>
   timezone: string
   edition: Edition
-  productKeyMode: 'none' | 'generic' | 'custom'
+  productKeyMode: 'none' | 'custom'
   productKeyCustom: string
   diskMode: DiskMode
   volumes: DiskVolume[]
@@ -30,6 +30,11 @@ export type UnattendConfig = {
   userName: string
   password: string
   autoLogon: boolean
+  primaryUserAdmin: boolean
+  extraUserEnabled: boolean
+  extraUserName: string
+  extraUserPassword: string
+  extraUserAdmin: boolean
   keepApps: KeepAppId[]
   installApps: InstallAppId[]
   disableWidgets: boolean
@@ -50,6 +55,13 @@ export type UnattendConfig = {
   enableLongPaths: boolean
   numLockOn: boolean
   disableTelemetry: boolean
+  darkTheme: boolean
+  classicContextMenu: boolean
+  disableCopilot: boolean
+  disableRecall: boolean
+  disableStartAds: boolean
+  highPerformance: boolean
+  disableBitLocker: boolean
 }
 
 /** Whitelist ids: checked = keep, unchecked = remove on first logon. */

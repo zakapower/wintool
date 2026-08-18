@@ -24,7 +24,10 @@ const display = Literata({
 })
 
 export const metadata: Metadata = {
-  title: 'WinTools',
+  title: {
+    default: 'WinTools',
+    template: 'WinTools - %s',
+  },
   description:
     'Build an autounattend.xml answer file for Windows 11 setup.',
   applicationName: 'WinTools',

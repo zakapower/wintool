@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import Link from 'next/link'
-import { Download, RotateCcw, Upload } from 'lucide-react'
+import { Check, Download, RotateCcw, Trash2, Upload } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { defaultConfig } from '@/lib/defaults'
 import { buildUnattendXml, validateConfig } from '@/lib/buildUnattendXml'
@@ -33,7 +33,7 @@ import {
   DEFAULT_VOLUMES,
   MAX_VOLUMES,
   MIN_VOLUMES,
-  nextVolumeLetter,
+  appendVolume,
 } from '@/lib/diskVolumes'
 import './Generator.css'
 
@@ -51,6 +51,11 @@ export function Generator() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [flashId, setFlashId] = useState<string | null>(null)
   const flashTimer = useRef<number | null>(null)
+  const [resetDone, setResetDone] = useState(false)
+  const [resetSpinning, setResetSpinning] = useState(false)
+  const [resetTick, setResetTick] = useState(0)
+  const resetTimer = useRef<number | null>(null)
+  const resetSpinTimer = useRef<number | null>(null)
   const clientErrors = useMemo(() => validateConfig(cfg, lang), [cfg, lang])
 
   const languageOptions = [
@@ -238,6 +243,20 @@ export function Generator() {
     setImportError(null)
     setImportUnsupported([])
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (resetTimer.current != null) window.clearTimeout(resetTimer.current)
+    if (resetSpinTimer.current != null) window.clearTimeout(resetSpinTimer.current)
+    setResetDone(false)
+    setResetSpinning(true)
+    setResetTick((n) => n + 1)
+    resetSpinTimer.current = window.setTimeout(() => {
+      setResetSpinning(false)
+      setResetDone(true)
+      resetSpinTimer.current = null
+    }, 420)
+    resetTimer.current = window.setTimeout(() => {
+      setResetDone(false)
+      resetTimer.current = null
+    }, 2400)
   }
 
   function updateVolume(
@@ -263,11 +282,7 @@ export function Generator() {
   function addVolume() {
     setCfg((prev) => {
       if (prev.volumes.length >= MAX_VOLUMES) return prev
-      const letter = nextVolumeLetter(prev.volumes)
-      const volumes = [...prev.volumes]
-      const last = volumes.pop()!
-      volumes.push({ letter, label: letter, sizeGb: 50 }, { ...last, sizeGb: null })
-      return { ...prev, volumes }
+      return { ...prev, volumes: appendVolume(prev.volumes) }
     })
     setError(null)
   }
@@ -372,11 +387,48 @@ export function Generator() {
         <div className="generator__actions">
           <button
             type="button"
-            className="btn btn--ghost generator__reset"
+            className={[
+              'btn btn--ghost generator__reset',
+              resetSpinning ? 'generator__reset--spin' : '',
+              resetDone ? 'generator__reset--done' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             onClick={resetAll}
+            aria-live="polite"
+            aria-label={
+              resetDone
+                ? t('Сброшено', 'Cleared')
+                : t('Сбросить', 'Reset')
+            }
           >
-            <RotateCcw size={18} strokeWidth={2.25} aria-hidden />
-            {t('Сбросить', 'Reset')}
+            <span className="generator__reset-icon" aria-hidden>
+              <RotateCcw
+                key={`spin-${resetTick}`}
+                className="generator__reset-icon-spin"
+                size={18}
+                strokeWidth={2.25}
+              />
+              <Check
+                className="generator__reset-icon-check"
+                size={18}
+                strokeWidth={2.25}
+              />
+            </span>
+            <span className="generator__reset-label">
+              <span
+                className="generator__reset-label-idle"
+                aria-hidden={resetDone}
+              >
+                {t('Сбросить', 'Reset')}
+              </span>
+              <span
+                className="generator__reset-label-done"
+                aria-hidden={!resetDone}
+              >
+                {t('Сброшено', 'Cleared')}
+              </span>
+            </span>
           </button>
           <button
             type="button"
@@ -492,21 +544,6 @@ export function Generator() {
                 <input
                   type="radio"
                   name="keyMode"
-                  checked={cfg.productKeyMode === 'generic'}
-                  onChange={() => patch('productKeyMode', 'generic')}
-                />
-                <span className="choice__mark choice__mark--radio" aria-hidden />
-                <span className="choice__text">
-                  {t(
-                    'Generic (установка без активации)',
-                    'Generic (install without activation)',
-                  )}
-                </span>
-              </label>
-              <label className="choice">
-                <input
-                  type="radio"
-                  name="keyMode"
                   checked={cfg.productKeyMode === 'custom'}
                   onChange={() => patch('productKeyMode', 'custom')}
                 />
@@ -525,12 +562,14 @@ export function Generator() {
               />
             )}
           </fieldset>
-          <p className="field__hint">
-            {t(
-              'Generic ставит выбранную редакцию без активации. «Без ключа» тоже пропускает экран ключа - редакция берётся из ISO.',
-              'Generic installs the chosen edition without activating. “No key” also skips the key screen - the edition comes from the ISO.',
-            )}
-          </p>
+          {cfg.productKeyMode === 'none' && (
+            <p className="field__hint">
+              {t(
+                'Экран ключа не показывается. Редакция берётся из ISO.',
+                'The key screen is skipped. Edition comes from the ISO.',
+              )}
+            </p>
+          )}
         </section>
 
         <section id="disk" className="block">
@@ -569,8 +608,8 @@ export function Generator() {
                 <span className="choice__mark choice__mark--radio" aria-hidden />
                 <span className="choice__text">
                   {t(
-                    'Стереть системный диск (не флешку) и разметить автоматически',
-                    'Wipe the internal disk (not the USB) and partition automatically',
+                    'Стереть системный диск и разметить автоматически',
+                    'Wipe the internal disk and partition automatically',
                   )}
                 </span>
               </label>
@@ -579,8 +618,8 @@ export function Generator() {
           <p className="field__hint">
             {cfg.diskMode === 'wipe0'
               ? t(
-                  'Setup сам найдёт внутренний диск (не USB), сотрёт его и создаст разделы. Можно уйти: установка не должна останавливаться на выборе диска. Если диск меньше суммы разделов, C: уменьшится автоматически.',
-                  'Setup finds the internal disk (not the USB), wipes it, and creates the volumes. You can walk away: setup should not stop on the disk screen. If the disk is smaller than the volume sizes, C: shrinks automatically.',
+                  'Setup сам найдёт внутренний диск, сотрёт его и создаст разделы. Можно уйти: установка не должна останавливаться на выборе диска. Если диск меньше суммы разделов, C: уменьшится автоматически.',
+                  'Setup finds the internal disk, wipes it, and creates the volumes. You can walk away: setup should not stop on the disk screen. If the disk is smaller than the volume sizes, C: shrinks automatically.',
                 )
               : t(
                   'Установка остановится на выборе раздела - без вас Windows не поставится.',
@@ -669,16 +708,20 @@ export function Generator() {
                           )}
                         </label>
                         <div className="volume-row__actions">
+                          <span className="field__label" aria-hidden>
+                            {'\u00a0'}
+                          </span>
                           {!isFirst && cfg.volumes.length > MIN_VOLUMES ? (
                             <button
                               type="button"
-                              className="btn btn--ghost"
+                              className="volume-row__remove"
                               onClick={() => removeVolume(index)}
+                              aria-label={t('Убрать', 'Remove')}
                             >
-                              {t('Убрать', 'Remove')}
+                              <Trash2 size={18} strokeWidth={2} aria-hidden />
                             </button>
                           ) : (
-                            <span className="volume-row__spacer" aria-hidden />
+                            <span className="volume-row__remove-slot" aria-hidden />
                           )}
                         </div>
                       </div>
@@ -763,6 +806,94 @@ export function Generator() {
               suppressHydrationWarning
             />
           </label>
+          <fieldset className="field">
+            <legend className="field__label">
+              {t('Права', 'Permissions')}
+            </legend>
+            <div className="choices">
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.primaryUserAdmin}
+                  onChange={(e) => patch('primaryUserAdmin', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Администратор', 'Administrator')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.extraUserEnabled}
+                  onChange={(e) => patch('extraUserEnabled', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t(
+                    'Второй пользователь (дети / гость)',
+                    'Second user (kids / guest)',
+                  )}
+                </span>
+              </label>
+            </div>
+          </fieldset>
+          <p className="field__hint">
+            {t(
+              'Твики и winget на первом входе идут от этой учётки. Без прав администратора часть команд не сработает.',
+              'First-logon tweaks and winget run as this user. Without admin rights some commands will fail.',
+            )}
+          </p>
+          {cfg.extraUserEnabled ? (
+            <>
+              <label className={`field${flashClass('field-extra-user-name')}`}>
+                <span className="field__label">
+                  {t('Имя второго пользователя', 'Second user name')}
+                </span>
+                <DeferredTextInput
+                  id="field-extra-user-name"
+                  className="field__control"
+                  value={cfg.extraUserName}
+                  onCommit={(v) => patch('extraUserName', v)}
+                  maxLength={20}
+                  placeholder="Kids"
+                  autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  suppressHydrationWarning
+                />
+              </label>
+              <label className="field">
+                <span className="field__label">
+                  {t('Пароль второго пользователя', 'Second user password')}
+                </span>
+                <DeferredTextInput
+                  className="field__control"
+                  type="password"
+                  value={cfg.extraUserPassword}
+                  onCommit={(v) => patch('extraUserPassword', v)}
+                  autoComplete="off"
+                  name="wintool-extra-password"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  suppressHydrationWarning
+                />
+              </label>
+              <div className="choices">
+                <label className="choice">
+                  <input
+                    type="checkbox"
+                    checked={cfg.extraUserAdmin}
+                    onChange={(e) => patch('extraUserAdmin', e.target.checked)}
+                  />
+                  <span className="choice__mark" aria-hidden />
+                  <span className="choice__text">
+                    {t('Второй пользователь — администратор', 'Second user is administrator')}
+                  </span>
+                </label>
+              </div>
+            </>
+          ) : null}
         </section>
 
         <section id="system-apps" className="block">
@@ -888,6 +1019,91 @@ export function Generator() {
 
         <section id="tweaks" className="block">
           <h2 className="block__title">{t('Твики', 'Tweaks')}</h2>
+
+          <div className="tweak-group">
+            <h3 className="tweak-group__title">
+              {t('Вид и Windows', 'Look & Windows')}
+            </h3>
+            <div className="choices choices--tweaks">
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.darkTheme}
+                  onChange={(e) => patch('darkTheme', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Тёмная тема', 'Dark theme')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.classicContextMenu}
+                  onChange={(e) => patch('classicContextMenu', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Классическое меню ПКМ', 'Classic context menu')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.disableCopilot}
+                  onChange={(e) => patch('disableCopilot', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Выключить Copilot', 'Turn off Copilot')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.disableRecall}
+                  onChange={(e) => patch('disableRecall', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Выключить Recall', 'Turn off Recall')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.disableStartAds}
+                  onChange={(e) => patch('disableStartAds', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Убрать рекламу в Пуске', 'Remove Start ads')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.highPerformance}
+                  onChange={(e) => patch('highPerformance', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('План «высокая производительность»', 'High performance power plan')}
+                </span>
+              </label>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  checked={cfg.disableBitLocker}
+                  onChange={(e) => patch('disableBitLocker', e.target.checked)}
+                />
+                <span className="choice__mark" aria-hidden />
+                <span className="choice__text">
+                  {t('Выключить BitLocker', 'Turn off BitLocker')}
+                </span>
+              </label>
+            </div>
+          </div>
 
           <div className="tweak-group">
             <h3 className="tweak-group__title">
@@ -1184,9 +1400,7 @@ export function Generator() {
                   <dd>
                     {cfg.productKeyMode === 'none'
                       ? t('Без ключа', 'No key')
-                      : cfg.productKeyMode === 'generic'
-                        ? 'Generic'
-                        : t('Свой ключ', 'Custom key')}
+                      : t('Свой ключ', 'Custom key')}
                   </dd>
                 </div>
               </dl>
@@ -1252,8 +1466,28 @@ export function Generator() {
                 </div>
                 <div className="summary__row">
                   <dt>{t('Пользователь', 'User')}</dt>
-                  <dd>{cfg.userName || '-'}</dd>
+                  <dd>
+                    {cfg.userName || '-'}
+                    {cfg.userName
+                      ? cfg.primaryUserAdmin
+                        ? t(' (админ)', ' (admin)')
+                        : t(' (обычный)', ' (standard)')
+                      : ''}
+                  </dd>
                 </div>
+                {cfg.extraUserEnabled ? (
+                  <div className="summary__row">
+                    <dt>{t('Второй пользователь', 'Second user')}</dt>
+                    <dd>
+                      {cfg.extraUserName || '-'}
+                      {cfg.extraUserName
+                        ? cfg.extraUserAdmin
+                          ? t(' (админ)', ' (admin)')
+                          : t(' (обычный)', ' (standard)')
+                        : ''}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="summary__row">
                   <dt>{t('Пароль', 'Password')}</dt>
                   <dd>
@@ -1363,6 +1597,21 @@ export function Generator() {
                       : null,
                     cfg.disableHibernation
                       ? t('Без гибернации', 'No hibernation')
+                      : null,
+                    cfg.darkTheme ? t('Тёмная тема', 'Dark theme') : null,
+                    cfg.classicContextMenu
+                      ? t('Классическое меню ПКМ', 'Classic context menu')
+                      : null,
+                    cfg.disableCopilot ? t('Copilot выкл.', 'Copilot off') : null,
+                    cfg.disableRecall ? t('Recall выкл.', 'Recall off') : null,
+                    cfg.disableStartAds
+                      ? t('Без рекламы в Пуске', 'No Start ads')
+                      : null,
+                    cfg.highPerformance
+                      ? t('Высокая производительность', 'High performance')
+                      : null,
+                    cfg.disableBitLocker
+                      ? t('BitLocker выкл.', 'BitLocker off')
                       : null,
                     cfg.expressPrivacy === 'disable-all'
                       ? t('Минимум данных', 'Minimize data')

@@ -86,19 +86,14 @@ test('product key is under UserData and never shows the key UI', () => {
     none,
     /<ProductKey>\s*<Key>\s*<\/Key>\s*<WillShowUI>Never<\/WillShowUI>\s*<\/ProductKey>/,
   )
-  const generic = buildUnattendXml({
+  const custom = buildUnattendXml({
     ...sampleConfig,
-    productKeyMode: 'generic',
+    productKeyMode: 'custom',
+    productKeyCustom: 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE',
   })
-  assert.match(
-    generic,
-    /<Key>VK7JG-NPHTM-C97JM-9MPGT-3V66T<\/Key>/,
-  )
-  assert.match(generic, /<WillShowUI>Never<\/WillShowUI>/)
-  assert.doesNotMatch(
-    generic,
-    /<ProductKey>VK7JG-NPHTM-C97JM-9MPGT-3V66T<\/ProductKey>/,
-  )
+  assert.match(custom, /<Key>AAAAA-BBBBB-CCCCC-DDDDD-EEEEE<\/Key>/)
+  assert.match(custom, /<WillShowUI>Never<\/WillShowUI>/)
+  assert.doesNotMatch(custom, /VK7JG-NPHTM-C97JM-9MPGT-3V66T/)
 })
 
 test('windowsPE disables DynamicUpdate and bypasses TPM checks', () => {
@@ -152,4 +147,52 @@ test('wipe PE disk command stays under Windows Path limit', () => {
     path.length < 8000,
     `RunSynchronous Path is ${path.length} chars (limit ~8191)`,
   )
+})
+
+test('extra user and Users group land in XML', () => {
+  const xml = buildUnattendXml({
+    ...sampleConfig,
+    primaryUserAdmin: false,
+    extraUserEnabled: true,
+    extraUserName: 'Kids',
+    extraUserPassword: 'play',
+    extraUserAdmin: false,
+  })
+  assert.match(xml, /<Name>User<\/Name>/)
+  assert.match(xml, /<Name>Kids<\/Name>/)
+  assert.match(xml, /<Group>Users<\/Group>/)
+  const errors = validateConfig({
+    ...sampleConfig,
+    extraUserEnabled: true,
+    extraUserName: 'User',
+  })
+  assert.ok(errors.some((e) => e.targetId === 'field-extra-user-name'))
+})
+
+test('tweaks and vcredist appear in FirstLogon script', () => {
+  const xml = buildUnattendXml({
+    ...sampleConfig,
+    darkTheme: true,
+    classicContextMenu: true,
+    disableCopilot: true,
+    disableRecall: true,
+    disableStartAds: true,
+    highPerformance: true,
+    disableBitLocker: true,
+    installApps: ['vcredist'],
+  })
+  assert.match(xml, /<Description>WinTools BitLocker<\/Description>/)
+  const script = decodeEncodedCommands(xml).find((s) =>
+    s.includes('Get-AppxPackage'),
+  )
+  assert.ok(script)
+  assert.match(script, /AppsUseLightTheme/)
+  assert.match(script, /86ca1aa0-34aa-4e8b-a509-50c905bae2a2/)
+  assert.match(script, /TurnOffWindowsCopilot/)
+  assert.match(script, /DisableAIDataAnalysis/)
+  assert.match(script, /Start_IrisRecommendations/)
+  assert.match(script, /SCHEME_MAX/)
+  assert.match(script, /PreventDeviceEncryption/)
+  assert.match(script, /Microsoft\.VCRedist\.2015\+\.x64/)
+  assert.match(script, /Microsoft\.VCRedist\.2015\+\.x86/)
 })

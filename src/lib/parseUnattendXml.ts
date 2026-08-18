@@ -137,7 +137,7 @@ function detectUnsupported(xml: string, lang: 'ru' | 'en'): string[] {
   const accountNames = new Set(
     accounts.map((a) => textOf(a.inner, 'Name')).filter(Boolean),
   )
-  if (accountNames.size > 1) {
+  if (accountNames.size > 2) {
     out.push(t('Несколько локальных пользователей', 'Multiple local accounts'))
   }
 
@@ -238,13 +238,12 @@ export function parseUnattendXml(
       productKey = productKeyTag.inner.replace(/<[^>]+>/g, '').trim()
     }
   }
-  if (!productKey) {
+  if (!productKey || GENERIC_KEYS[productKey]) {
     cfg.productKeyMode = 'none'
     cfg.productKeyCustom = ''
-  } else if (GENERIC_KEYS[productKey]) {
-    cfg.productKeyMode = 'generic'
-    cfg.productKeyCustom = ''
-    cfg.edition = GENERIC_KEYS[productKey]
+    if (productKey && GENERIC_KEYS[productKey]) {
+      cfg.edition = GENERIC_KEYS[productKey]
+    }
   } else {
     cfg.productKeyMode = 'custom'
     cfg.productKeyCustom = productKey
@@ -306,11 +305,29 @@ export function parseUnattendXml(
 
   cfg.computerName = textOf(trimmed, 'ComputerName')
 
-  const local = firstTag(trimmed, 'LocalAccount')
-  if (local) {
-    cfg.userName = textOf(local.inner, 'Name')
-    const pwd = firstTag(local.inner, 'Password')
+  const locals: TagMatch[] = []
+  const seenAccounts = new Set<string>()
+  for (const account of allTags(trimmed, 'LocalAccount')) {
+    const name = textOf(account.inner, 'Name')
+    const key = name.toLowerCase()
+    if (!name || seenAccounts.has(key)) continue
+    seenAccounts.add(key)
+    locals.push(account)
+  }
+  const primary = locals[0]
+  if (primary) {
+    cfg.userName = textOf(primary.inner, 'Name')
+    const pwd = firstTag(primary.inner, 'Password')
     cfg.password = pwd ? textOf(pwd.inner, 'Value') : ''
+    cfg.primaryUserAdmin = !/^users$/i.test(textOf(primary.inner, 'Group'))
+  }
+  const extra = locals[1]
+  if (extra) {
+    cfg.extraUserEnabled = true
+    cfg.extraUserName = textOf(extra.inner, 'Name')
+    const pwd = firstTag(extra.inner, 'Password')
+    cfg.extraUserPassword = pwd ? textOf(pwd.inner, 'Value') : ''
+    cfg.extraUserAdmin = /administrators/i.test(textOf(extra.inner, 'Group'))
   }
 
   cfg.autoLogon = true
@@ -360,6 +377,22 @@ export function parseUnattendXml(
     cfg.disableTelemetry = /AllowTelemetry/.test(script)
     cfg.disableOneDrive = /OneDriveSetup\.exe/.test(script)
     cfg.disableHibernation = /powercfg \/h off/i.test(script)
+    cfg.darkTheme = /AppsUseLightTheme/.test(script)
+    cfg.classicContextMenu = /86ca1aa0-34aa-4e8b-a509-50c905bae2a2/.test(script)
+    cfg.disableCopilot = /TurnOffWindowsCopilot|ShowCopilotButton/.test(script)
+    cfg.disableRecall = /DisableAIDataAnalysis/.test(script)
+    cfg.disableStartAds = /Start_IrisRecommendations|SystemPaneSuggestionsEnabled/.test(
+      script,
+    )
+    cfg.highPerformance = /powercfg \/setactive SCHEME_MAX/i.test(script)
+    cfg.disableBitLocker = /PreventDeviceEncryption/.test(script)
+  }
+
+  if (
+    !cfg.disableBitLocker &&
+    /PreventDeviceEncryption/.test(trimmed)
+  ) {
+    cfg.disableBitLocker = true
   }
 
   return { ok: true, config: cfg }

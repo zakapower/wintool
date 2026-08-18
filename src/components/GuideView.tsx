@@ -117,8 +117,8 @@ export function GuideView() {
             </span>
             <p>
               {t(
-                'Откройте Rufus: флешка, затем файл .iso. Оставьте GPT и UEFI. Снимите галочки «Windows User Experience» — иначе Rufus подставит свои настройки вместо ваших.',
-                'Open Rufus: pick the USB, then the .iso. Leave GPT and UEFI. Uncheck Windows User Experience, or Rufus will replace your file with its own.',
+                'В Rufus: флешка и .iso, GPT и UEFI не меняйте. Снимите «Windows User Experience», иначе подменит ваш файл.',
+                'In Rufus pick the USB and .iso, leave GPT and UEFI. Uncheck Windows User Experience, or it replaces your file.',
               )}
             </p>
           </li>

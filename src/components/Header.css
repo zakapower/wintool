@@ -174,11 +174,6 @@
   transform: scale(1);
 }
 
-.ctrl__face--moon,
-.ctrl__face--sun {
-  transition: none;
-}
-
 .ctrl__face--moon {
   opacity: 1;
   transform: scale(1);
