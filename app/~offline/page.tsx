@@ -21,7 +21,7 @@ export default function OfflinePage() {
         Offline
       </h1>
       <p style={{ color: 'var(--muted)', marginBottom: '1.25rem' }}>
-        Нет сети. Откройте главную — генератор работает без интернета.
+        Нет сети. Откройте главную - генератор работает без интернета.
       </p>
       <p>
         <Link href="/" style={{ color: 'var(--accent)' }}>

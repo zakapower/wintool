@@ -2,12 +2,14 @@ import { BLOAT_PACKAGES } from './bloatPackages.ts'
 import { ALL_KEEP_APPS, defaultConfig } from './defaults.ts'
 import { INSTALL_APP_CATALOG } from './installApps.ts'
 import type { Edition, KeepAppId, UnattendConfig } from './types.ts'
+import { parseVolumesMarker } from './peDiskScript.ts'
 
 const SUPPORTED_COMPONENTS = new Set([
   'Microsoft-Windows-International-Core-WinPE',
   'Microsoft-Windows-Setup',
   'Microsoft-Windows-Shell-Setup',
   'Microsoft-Windows-International-Core',
+  'Microsoft-Windows-Deployment',
 ])
 
 const GENERIC_KEYS: Record<string, Edition> = {
@@ -123,12 +125,19 @@ function detectUnsupported(xml: string, lang: 'ru' | 'en'): string[] {
   ) {
     out.push(t('CopyProfile / спец. опции Setup', 'CopyProfile / specialized setup'))
   }
-  if (/<(?:[\w.-]+:)?RunSynchronous\b/i.test(xml)) {
-    out.push('RunSynchronous')
+  for (const cmd of allTags(xml, 'RunSynchronousCommand')) {
+    const desc = textOf(cmd.inner, 'Description')
+    if (!/^WinTools\b/i.test(desc)) {
+      out.push('RunSynchronous')
+      break
+    }
   }
 
   const accounts = allTags(xml, 'LocalAccount')
-  if (accounts.length > 1) {
+  const accountNames = new Set(
+    accounts.map((a) => textOf(a.inner, 'Name')).filter(Boolean),
+  )
+  if (accountNames.size > 1) {
     out.push(t('Несколько локальных пользователей', 'Multiple local accounts'))
   }
 
@@ -137,7 +146,7 @@ function detectUnsupported(xml: string, lang: 'ru' | 'en'): string[] {
     const wipe = /<(?:[\w.-]+:)?WillWipeDisk\b[^>]*>\s*true\s*</i.test(
       disk.inner,
     )
-    // EFI + MSR + 2–5 data volumes
+    // EFI + MSR + 2-5 data volumes
     const createCount = allTags(disk.inner, 'CreatePartition').length
     if (!wipe || createCount < 4 || createCount > 7) {
       out.push(t('Нестандартная разметка диска', 'Custom disk layout'))
@@ -150,9 +159,6 @@ function detectUnsupported(xml: string, lang: 'ru' | 'en'): string[] {
     if (desc && !/^(WinTools|Wintool)\s+debloat$/i.test(desc)) {
       out.push(`FirstLogon: ${desc}`)
     }
-  }
-  if (cmds.length > 1) {
-    out.push(t('Несколько FirstLogonCommands', 'Multiple FirstLogonCommands'))
   }
 
   return [...new Set(out)]
@@ -223,7 +229,15 @@ export function parseUnattendXml(
     }
   }
 
-  const productKey = textOf(trimmed, 'ProductKey')
+  const productKeyTag = firstTag(trimmed, 'ProductKey')
+  let productKey = ''
+  if (productKeyTag) {
+    if (firstTag(productKeyTag.inner, 'Key')) {
+      productKey = textOf(productKeyTag.inner, 'Key')
+    } else {
+      productKey = productKeyTag.inner.replace(/<[^>]+>/g, '').trim()
+    }
+  }
   if (!productKey) {
     cfg.productKeyMode = 'none'
     cfg.productKeyCustom = ''
@@ -236,7 +250,24 @@ export function parseUnattendXml(
     cfg.productKeyCustom = productKey
   }
 
-  if (/<(?:[\w.-]+:)?WillWipeDisk\b/i.test(trimmed)) {
+  const peDiskCmd = allTags(trimmed, 'RunSynchronousCommand').find((cmd) =>
+    /WinTools disk/i.test(textOf(cmd.inner, 'Description')),
+  )
+  const peDiskScript = peDiskCmd
+    ? decodeEncodedCommand(
+        textOf(peDiskCmd.inner, 'Path')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"'),
+      )
+    : null
+  if (peDiskScript && /WINTOOLS_VOLUMES=/.test(peDiskScript)) {
+    cfg.diskMode = 'wipe0'
+    const marker = /WINTOOLS_VOLUMES=([^\r\n]+)/.exec(peDiskScript)
+    const volumes = marker ? parseVolumesMarker(marker[1]) : null
+    if (volumes) cfg.volumes = volumes
+  } else if (/<(?:[\w.-]+:)?WillWipeDisk\b/i.test(trimmed)) {
     cfg.diskMode = 'wipe0'
     const creates = allTags(trimmed, 'CreatePartition')
     const modifies = allTags(trimmed, 'ModifyPartition')
@@ -269,7 +300,7 @@ export function parseUnattendXml(
       }
       cfg.volumes = volumes
     }
-  } else if (/<(?:[\w.-]+:)?InstallToAvailablePartition\b/i.test(trimmed)) {
+  } else {
     cfg.diskMode = 'interactive'
   }
 

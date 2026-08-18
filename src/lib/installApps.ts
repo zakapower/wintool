@@ -27,6 +27,10 @@ export type InstallAppId =
   | 'obsidian'
   | 'notion'
   | 'sharex'
+  | 'qbittorrent'
+  | 'anydesk'
+  | 'cloudflare'
+  | 'windhawk'
 
 export type InstallAppEntry = {
   id: InstallAppId
@@ -51,6 +55,8 @@ export const INSTALL_APP_CATALOG: InstallAppEntry[] = [
   { id: 'geek', labelRu: 'Geek Uninstaller', labelEn: 'Geek Uninstaller', wingetId: 'GeekUninstaller.GeekUninstaller' },
   { id: 'revo', labelRu: 'Revo Uninstaller', labelEn: 'Revo Uninstaller', wingetId: 'RevoUninstaller.RevoUninstaller' },
   { id: 'v2raytun', labelRu: 'V2RayTun', labelEn: 'V2RayTun', wingetId: 'v2RayTun.Windows' },
+  { id: 'cloudflare', labelRu: 'Cloudflare WARP', labelEn: 'Cloudflare WARP', wingetId: 'Cloudflare.Warp' },
+  { id: 'anydesk', labelRu: 'AnyDesk', labelEn: 'AnyDesk', wingetId: 'AnyDeskSoftwareGmbH.AnyDesk' },
   { id: 'discord', labelRu: 'Discord', labelEn: 'Discord', wingetId: 'Discord.Discord' },
   { id: 'telegram', labelRu: 'Telegram', labelEn: 'Telegram', wingetId: 'Telegram.TelegramDesktop' },
   { id: 'steam', labelRu: 'Steam', labelEn: 'Steam', wingetId: 'Valve.Steam' },
@@ -59,8 +65,10 @@ export const INSTALL_APP_CATALOG: InstallAppEntry[] = [
   { id: 'ubisoft', labelRu: 'Ubisoft Connect', labelEn: 'Ubisoft Connect', wingetId: 'Ubisoft.Connect' },
   { id: 'ea', labelRu: 'EA App', labelEn: 'EA App', wingetId: 'ElectronicArts.EADesktop' },
   { id: 'vlc', labelRu: 'VLC', labelEn: 'VLC', wingetId: 'VideoLAN.VLC' },
+  { id: 'qbittorrent', labelRu: 'qBittorrent', labelEn: 'qBittorrent', wingetId: 'qBittorrent.qBittorrent' },
   { id: 'spotify', labelRu: 'Spotify', labelEn: 'Spotify', wingetId: 'Spotify.Spotify' },
   { id: 'obsidian', labelRu: 'Obsidian', labelEn: 'Obsidian', wingetId: 'Obsidian.Obsidian' },
   { id: 'notion', labelRu: 'Notion', labelEn: 'Notion', wingetId: 'Notion.Notion' },
   { id: 'sharex', labelRu: 'ShareX', labelEn: 'ShareX', wingetId: 'ShareX.ShareX' },
+  { id: 'windhawk', labelRu: 'Windhawk', labelEn: 'Windhawk', wingetId: 'RamenSoftware.Windhawk' },
 ]

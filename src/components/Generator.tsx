@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
+import Link from 'next/link'
 import { Download, RotateCcw, Upload } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { defaultConfig } from '@/lib/defaults'
@@ -363,9 +364,10 @@ export function Generator() {
         </h1>
         <p className="generator__lead">
           {t(
-            'Настройте разделы, скачайте файл и положите в корень установочной флешки Windows 11.',
-            'Configure the sections, download the file, and put it in the root of your Windows 11 install USB.',
-          )}
+            'Настройте разделы, скачайте файл и положите в корень установочной флешки Windows 11. Как записать флешку и уйти от ПК - в',
+            'Configure the sections, download the file, and put it in the root of your Windows 11 install USB. How to write the USB and walk away is in the',
+          )}{' '}
+          <Link href="/guide">{t('Инструкции', 'Guide')}</Link>.
         </p>
         <div className="generator__actions">
           <button
@@ -523,6 +525,12 @@ export function Generator() {
               />
             )}
           </fieldset>
+          <p className="field__hint">
+            {t(
+              'Generic ставит выбранную редакцию без активации. «Без ключа» тоже пропускает экран ключа - редакция берётся из ISO.',
+              'Generic installs the chosen edition without activating. “No key” also skips the key screen - the edition comes from the ISO.',
+            )}
+          </p>
         </section>
 
         <section id="disk" className="block">
@@ -561,18 +569,29 @@ export function Generator() {
                 <span className="choice__mark choice__mark--radio" aria-hidden />
                 <span className="choice__text">
                   {t(
-                    'Стереть Диск 0 и разметить автоматически',
-                    'Wipe Disk 0 and partition automatically',
+                    'Стереть системный диск (не флешку) и разметить автоматически',
+                    'Wipe the internal disk (not the USB) and partition automatically',
                   )}
                 </span>
               </label>
             </div>
           </fieldset>
+          <p className="field__hint">
+            {cfg.diskMode === 'wipe0'
+              ? t(
+                  'Setup сам найдёт внутренний диск (не USB), сотрёт его и создаст разделы. Можно уйти: установка не должна останавливаться на выборе диска. Если диск меньше суммы разделов, C: уменьшится автоматически.',
+                  'Setup finds the internal disk (not the USB), wipes it, and creates the volumes. You can walk away: setup should not stop on the disk screen. If the disk is smaller than the volume sizes, C: shrinks automatically.',
+                )
+              : t(
+                  'Установка остановится на выборе раздела - без вас Windows не поставится.',
+                  'Setup will stop on the partition screen - Windows will not install until you pick a disk.',
+                )}
+          </p>
           {cfg.diskMode === 'wipe0' && (
             <>
               <div id="field-volumes" className={`field${flashClass('field-volumes')}`}>
                 <div className="field__label">
-                  {t('Разделы (2–5)', 'Volumes (2–5)')}
+                  {t('Разделы (2-5)', 'Volumes (2-5)')}
                 </div>
                 <div className="volume-list">
                   {cfg.volumes.map((vol, index) => {
@@ -692,11 +711,18 @@ export function Generator() {
               value={cfg.computerName}
               onCommit={(v) => patch('computerName', v)}
               maxLength={15}
+              placeholder="DESKTOP-PC"
               autoComplete="off"
               data-1p-ignore
               data-lpignore="true"
               suppressHydrationWarning
             />
+            <span className="field__hint">
+              {t(
+                'Обязательно. 1-15 символов: латиница, цифры, дефис. Не начинается и не заканчивается дефисом.',
+                'Required. 1-15 characters: letters, digits, hyphen. Cannot start or end with a hyphen.',
+              )}
+            </span>
           </label>
           <label className={`field${flashClass('field-user-name')}`}>
             <span className="field__label">
@@ -707,11 +733,19 @@ export function Generator() {
               className="field__control"
               value={cfg.userName}
               onCommit={(v) => patch('userName', v)}
+              maxLength={20}
+              placeholder="User"
               autoComplete="off"
               data-1p-ignore
               data-lpignore="true"
               suppressHydrationWarning
             />
+            <span className="field__hint">
+              {t(
+                'Обязательно. Без этого Setup остановится на создании учётки. Лучше латиница, без спецсимволов.',
+                'Required. Without it Setup stops on the account screen. Prefer letters and digits, no special characters.',
+              )}
+            </span>
           </label>
           <label className="field">
             <span className="field__label">
@@ -1166,8 +1200,8 @@ export function Generator() {
                   <dd>
                     {cfg.diskMode === 'wipe0'
                       ? t(
-                          'Стереть Disk 0 и разметить',
-                          'Wipe Disk 0 and partition',
+                          'Стереть системный диск и разметить',
+                          'Wipe internal disk and partition',
                         )
                       : t('Раздел вручную в Setup', 'Pick partition in Setup')}
                   </dd>
@@ -1186,8 +1220,8 @@ export function Generator() {
                                     `${v.letter}: remainder “${v.label}”`,
                                   )
                                 : t(
-                                    `${v.letter}: ${v.sizeGb ?? '—'} ГБ «${v.label}»`,
-                                    `${v.letter}: ${v.sizeGb ?? '—'} GB “${v.label}”`,
+                                    `${v.letter}: ${v.sizeGb ?? '-'} ГБ «${v.label}»`,
+                                    `${v.letter}: ${v.sizeGb ?? '-'} GB “${v.label}”`,
                                   )}
                             </li>
                           ))}
@@ -1214,11 +1248,11 @@ export function Generator() {
               <dl className="summary__list">
                 <div className="summary__row">
                   <dt>{t('Имя ПК', 'PC name')}</dt>
-                  <dd>{cfg.computerName || '—'}</dd>
+                  <dd>{cfg.computerName || '-'}</dd>
                 </div>
                 <div className="summary__row">
                   <dt>{t('Пользователь', 'User')}</dt>
-                  <dd>{cfg.userName || '—'}</dd>
+                  <dd>{cfg.userName || '-'}</dd>
                 </div>
                 <div className="summary__row">
                   <dt>{t('Пароль', 'Password')}</dt>

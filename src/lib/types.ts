@@ -7,7 +7,7 @@ export type Edition = 'Pro' | 'Home' | 'Enterprise'
 export type DiskMode = 'interactive' | 'wipe0'
 export type ExpressPrivacy = 'disable-all' | 'default'
 
-/** Data volume on wiped Disk 0 (after EFI/MSR). Last must have sizeGb: null (remainder). */
+/** Data volume on the wiped internal disk (after EFI/MSR). Last must have sizeGb: null (remainder). */
 export type DiskVolume = {
   letter: string
   label: string

@@ -6,8 +6,8 @@ import {
   MIN_VOLUMES,
   MAX_VOLUMES,
   MIN_WINDOWS_GB,
-  normalizeVolumes,
 } from './diskVolumes.ts'
+import { buildPeDiskScript } from './peDiskScript.ts'
 
 const EDITION_NAME: Record<UnattendConfig['edition'], string> = {
   Pro: 'Windows 11 Pro',
@@ -41,14 +41,21 @@ function inputLocale(cfg: UnattendConfig): string {
   return locales.join(';') || '0419:00000419'
 }
 
-function productKeyXml(cfg: UnattendConfig): string {
+function productKeyValue(cfg: UnattendConfig): string {
   if (cfg.productKeyMode === 'none') return ''
   const key =
     cfg.productKeyMode === 'custom'
       ? cfg.productKeyCustom.trim()
       : GENERIC_KEYS[cfg.edition]
-  if (!key) return ''
-  return `<ProductKey>${esc(key)}</ProductKey>`
+  return key
+}
+
+function productKeyUserDataXml(cfg: UnattendConfig): string {
+  const key = productKeyValue(cfg)
+  return `<ProductKey>
+          <Key>${esc(key)}</Key>
+          <WillShowUI>Never</WillShowUI>
+        </ProductKey>`
 }
 
 function imageInstallXml(cfg: UnattendConfig): string {
@@ -64,84 +71,53 @@ function imageInstallXml(cfg: UnattendConfig): string {
       <ImageInstall>
         <OSImage>
           ${from}
-          <InstallToAvailablePartition>true</InstallToAvailablePartition>
+          <WillShowUI>Always</WillShowUI>
         </OSImage>
       </ImageInstall>`
   }
-  const volumes = normalizeVolumes(cfg.volumes)
-  // Partition orders: 1 EFI, 2 MSR, then data volumes starting at 3
-  const createParts: string[] = [
-    `<CreatePartition wcm:action="add">
-              <Order>1</Order>
-              <Type>EFI</Type>
-              <Size>260</Size>
-            </CreatePartition>`,
-    `<CreatePartition wcm:action="add">
-              <Order>2</Order>
-              <Type>MSR</Type>
-              <Size>16</Size>
-            </CreatePartition>`,
-  ]
-  const modifyParts: string[] = [
-    `<ModifyPartition wcm:action="add">
-              <Order>1</Order>
-              <PartitionID>1</PartitionID>
-              <Format>FAT32</Format>
-              <Label>EFI</Label>
-            </ModifyPartition>`,
-    `<ModifyPartition wcm:action="add">
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
-            </ModifyPartition>`,
-  ]
-
-  volumes.forEach((vol, i) => {
-    const order = i + 3
-    if (vol.sizeGb == null) {
-      createParts.push(`<CreatePartition wcm:action="add">
-              <Order>${order}</Order>
-              <Type>Primary</Type>
-              <Extend>true</Extend>
-            </CreatePartition>`)
-    } else {
-      const mb = Math.max(1, Math.round(vol.sizeGb)) * 1024
-      createParts.push(`<CreatePartition wcm:action="add">
-              <Order>${order}</Order>
-              <Type>Primary</Type>
-              <Size>${mb}</Size>
-            </CreatePartition>`)
-    }
-    modifyParts.push(`<ModifyPartition wcm:action="add">
-              <Order>${order}</Order>
-              <PartitionID>${order}</PartitionID>
-              <Format>NTFS</Format>
-              <Label>${esc(vol.label)}</Label>
-              <Letter>${esc(vol.letter)}</Letter>
-            </ModifyPartition>`)
-  })
-
   return `
-      <DiskConfiguration>
-        <Disk wcm:action="add">
-          <DiskID>0</DiskID>
-          <WillWipeDisk>true</WillWipeDisk>
-          <CreatePartitions>
-            ${createParts.join('\n            ')}
-          </CreatePartitions>
-          <ModifyPartitions>
-            ${modifyParts.join('\n            ')}
-          </ModifyPartitions>
-        </Disk>
-      </DiskConfiguration>
       <ImageInstall>
         <OSImage>
           ${from}
-          <InstallTo>
-            <DiskID>0</DiskID>
-            <PartitionID>3</PartitionID>
-          </InstallTo>
+          <InstallToAvailablePartition>true</InstallToAvailablePartition>
+          <WillShowUI>OnError</WillShowUI>
         </OSImage>
       </ImageInstall>`
+}
+
+function runSynchronousXml(cfg: UnattendConfig): string {
+  const lab =
+    'cmd.exe /c "reg.exe add HKLM\\SYSTEM\\Setup\\LabConfig /v BypassTPMCheck /t REG_DWORD /d 1 /f & ' +
+    'reg.exe add HKLM\\SYSTEM\\Setup\\LabConfig /v BypassSecureBootCheck /t REG_DWORD /d 1 /f & ' +
+    'reg.exe add HKLM\\SYSTEM\\Setup\\LabConfig /v BypassRAMCheck /t REG_DWORD /d 1 /f & ' +
+    'reg.exe add HKLM\\SYSTEM\\Setup\\LabConfig /v BypassCPUCheck /t REG_DWORD /d 1 /f & ' +
+    'reg.exe add HKLM\\SYSTEM\\Setup\\LabConfig /v BypassStorageCheck /t REG_DWORD /d 1 /f & ' +
+    'reg.exe add HKLM\\SYSTEM\\Setup\\LabConfig /v BypassDiskCheck /t REG_DWORD /d 1 /f & ' +
+    'reg.exe add HKLM\\SYSTEM\\Setup\\MoSetup /v AllowUpgradesWithUnsupportedTPMOrCPU /t REG_DWORD /d 1 /f"'
+  const cmds = [
+    {
+      desc: 'WinTools LabConfig',
+      path: lab,
+    },
+  ]
+  if (cfg.diskMode === 'wipe0') {
+    cmds.push({
+      desc: 'WinTools disk',
+      path: `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${utf16LeToBase64(buildPeDiskScript(cfg))}`,
+    })
+  }
+  return `
+      <RunSynchronous>
+        ${cmds
+          .map(
+            (c, i) => `<RunSynchronousCommand wcm:action="add">
+          <Order>${i + 1}</Order>
+          <Description>${esc(c.desc)}</Description>
+          <Path>${esc(c.path)}</Path>
+        </RunSynchronousCommand>`,
+          )
+          .join('\n        ')}
+      </RunSynchronous>`
 }
 
 function bloatScript(cfg: UnattendConfig): string {
@@ -269,7 +245,7 @@ function bloatScript(cfg: UnattendConfig): string {
     )
   }
 
-  // Escape for XML via EncodedCommand — UTF-16LE base64 (works in Node and browser)
+  // Escape for XML via EncodedCommand - UTF-16LE base64 (works in Node and browser)
   const ps = lines.join('; ')
   const b64 = utf16LeToBase64(ps)
   return `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${b64}`
@@ -313,11 +289,15 @@ export function validateConfig(
   const computerName =
     typeof cfg.computerName === 'string' ? cfg.computerName : ''
   const userName = typeof cfg.userName === 'string' ? cfg.userName : ''
-  if (!/^[A-Za-z0-9-]{1,15}$/.test(computerName)) {
+  if (
+    !/^(?![0-9]+$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,13}[A-Za-z0-9])?$/.test(
+      computerName,
+    )
+  ) {
     errors.push({
       message: t(
-        'Имя ПК: 1–15 символов (латиница, цифры, дефис)',
-        'PC name: 1–15 chars (letters, digits, hyphen)',
+        'Имя ПК: 1-15 символов (латиница, цифры, дефис; не с дефиса и не из одних цифр)',
+        'PC name: 1-15 chars (letters, digits, hyphen; not starting/ending with hyphen, not all digits)',
       ),
       targetId: 'field-computer-name',
     })
@@ -327,9 +307,20 @@ export function validateConfig(
       message: t('Укажите имя пользователя', 'Enter a user name'),
       targetId: 'field-user-name',
     })
+  } else if (
+    userName.trim().length > 20 ||
+    /[/\\[\]:;|=,+*?<>"]/.test(userName)
+  ) {
+    errors.push({
+      message: t(
+        'Имя пользователя: до 20 символов, без / \\ [ ] : ; | = , + * ? < > "',
+        'User name: up to 20 chars, no / \\ [ ] : ; | = , + * ? < > "',
+      ),
+      targetId: 'field-user-name',
+    })
   }
   if (cfg.diskMode === 'wipe0') {
-    // Do not fill missing sizes — empty fields must surface as errors.
+    // Do not fill missing sizes - empty fields must surface as errors.
     const volumes = Array.isArray(cfg.volumes)
       ? cfg.volumes.map((v) => ({
           letter: String(v?.letter ?? '')
@@ -343,7 +334,7 @@ export function validateConfig(
       errors.push({
         message: t(
           `Нужно от ${MIN_VOLUMES} до ${MAX_VOLUMES} разделов`,
-          `Need ${MIN_VOLUMES}–${MAX_VOLUMES} volumes`,
+          `Need ${MIN_VOLUMES}-${MAX_VOLUMES} volumes`,
         ),
         targetId: 'field-volumes',
       })
@@ -410,7 +401,7 @@ export function validateConfig(
           errors.push({
             message: t(
               `Размер C: от ${MIN_WINDOWS_GB} до 2000 ГБ`,
-              `C: size must be ${MIN_WINDOWS_GB}–2000 GB`,
+              `C: size must be ${MIN_WINDOWS_GB}-2000 GB`,
             ),
             targetId: 'field-volumes',
           })
@@ -499,52 +490,26 @@ export function buildUnattendXml(cfg: UnattendConfig): string {
         </SynchronousCommand>
       </FirstLogonCommands>`
 
-  return `<?xml version="1.0" encoding="utf-8"?>
-<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
-  <settings pass="windowsPE">
-    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <SetupUILanguage>
-        <UILanguage>${lang}</UILanguage>
-      </SetupUILanguage>
+  const oobeShell = (arch: 'amd64' | 'wow64') => `
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="${arch}" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <InputLocale>${locale}</InputLocale>
       <SystemLocale>${lang}</SystemLocale>
       <UILanguage>${lang}</UILanguage>
       <UserLocale>${lang}</UserLocale>
     </component>
-    <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      ${productKeyXml(cfg)}
-      ${imageInstallXml(cfg)}
-      <UserData>
-        <AcceptEula>true</AcceptEula>
-        <FullName>${user}</FullName>
-        <Organization>WinTools</Organization>
-      </UserData>
-    </component>
-  </settings>
-  <settings pass="specialize">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <ComputerName>${esc(cfg.computerName)}</ComputerName>
-      <TimeZone>${esc(cfg.timezone)}</TimeZone>
-    </component>
-  </settings>
-  <settings pass="oobeSystem">
-    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <InputLocale>${locale}</InputLocale>
-      <SystemLocale>${lang}</SystemLocale>
-      <UILanguage>${lang}</UILanguage>
-      <UserLocale>${lang}</UserLocale>
-    </component>
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="${arch}" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
         <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
         <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-        <SkipMachineOOBE>true</SkipMachineOOBE>
-        <SkipUserOOBE>true</SkipUserOOBE>
         ${protect}
       </OOBE>
       <UserAccounts>
+        <AdministratorPassword>
+          <Value>${pass}</Value>
+          <PlainText>true</PlainText>
+        </AdministratorPassword>
         <LocalAccounts>
           <LocalAccount wcm:action="add">
             <Name>${user}</Name>
@@ -559,7 +524,53 @@ export function buildUnattendXml(cfg: UnattendConfig): string {
       </UserAccounts>
       ${autoLogon}
       ${firstLogon}
+    </component>`
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+  <settings pass="windowsPE">
+    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <SetupUILanguage>
+        <UILanguage>${lang}</UILanguage>
+      </SetupUILanguage>
+      <InputLocale>${locale}</InputLocale>
+      <SystemLocale>${lang}</SystemLocale>
+      <UILanguage>${lang}</UILanguage>
+      <UserLocale>${lang}</UserLocale>
     </component>
+    <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      ${imageInstallXml(cfg)}
+      <DynamicUpdate>
+        <Enable>false</Enable>
+        <WillShowUI>Never</WillShowUI>
+      </DynamicUpdate>
+      ${runSynchronousXml(cfg)}
+      <UserData>
+        <AcceptEula>true</AcceptEula>
+        <FullName>${user}</FullName>
+        <Organization>WinTools</Organization>
+        ${productKeyUserDataXml(cfg)}
+      </UserData>
+    </component>
+  </settings>
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <ComputerName>${esc(cfg.computerName)}</ComputerName>
+      <TimeZone>${esc(cfg.timezone)}</TimeZone>
+    </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <RunSynchronous>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Description>WinTools BypassNRO</Description>
+          <Path>reg.exe add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OOBE" /v BypassNRO /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>
+  </settings>
+  <settings pass="oobeSystem">
+    ${oobeShell('amd64')}
+    ${oobeShell('wow64')}
   </settings>
 </unattend>
 `

@@ -65,8 +65,6 @@ test('parseUnattendXml round-trips three volumes and install drive', () => {
     volumes: cfg.volumes.map((v) => ({ ...v })),
     installApps: [...cfg.installApps],
   })
-  assert.match(xml, /<Letter>E<\/Letter>/)
-  assert.match(xml, /<Extend>true<\/Extend>/)
   const result = parseUnattendXml(xml)
   assert.equal(result.ok, true)
   if (!result.ok) return

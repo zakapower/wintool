@@ -5,7 +5,7 @@ export const dynamic = 'force-static'
 
 export const metadata: Metadata = {
   title: 'Инструкция',
-  description: 'How to reinstall Windows 11 with WinTools autounattend.xml.',
+  description: 'Как записать флешку и поставить Windows 11 без вопросов установщика.',
 }
 
 export default function GuidePage() {

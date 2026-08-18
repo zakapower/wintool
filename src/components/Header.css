@@ -291,6 +291,12 @@
     padding: 0;
   }
 
+  .site-header__inner,
+  .site-header__bar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .site-header__bar {
     display: flex;
     flex-wrap: wrap;
@@ -332,6 +338,7 @@
     display: flex;
     flex: 1 0 100%;
     width: 100%;
+    min-width: 0;
     margin: 0;
     padding: 0;
     gap: 0;
@@ -342,16 +349,20 @@
 
   .site-nav a {
     flex: 1 1 0;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-height: 2.65rem;
     padding: 0.7rem 0.2rem 0.65rem;
-    font-size: 0.78rem;
+    font-size: clamp(0.7rem, 3.2vw, 0.78rem);
     font-weight: 600;
     letter-spacing: -0.01em;
     border-bottom: 2px solid transparent;
     text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .site-nav a.active {
@@ -384,7 +395,7 @@
     border: 1px solid var(--line);
     border-radius: 0.85rem;
     background: var(--surface);
-    box-shadow: 0 12px 28px color-mix(in srgb, var(--ink) 14%, transparent);
+    box-shadow: 0 12px 28px rgb(0 0 0 / 0.35);
   }
 
   .site-header--menu-open {

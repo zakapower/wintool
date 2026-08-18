@@ -77,12 +77,6 @@ body {
   line-height: 1.55;
   color: var(--ink);
   background-color: var(--bg);
-  background-image: radial-gradient(
-    80% 50% at 100% 0%,
-    color-mix(in srgb, var(--wash) 70%, transparent),
-    transparent 60%
-  );
-  background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -119,12 +113,23 @@ html.theme-switching *::after {
 
 .app-shell {
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
 }
 
 main {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --gutter: 0.9rem;
+    --header-h: calc(0.75rem + 2.35rem + 0.7rem + 2.65rem + 1px);
+  }
 }
 
 @keyframes in {

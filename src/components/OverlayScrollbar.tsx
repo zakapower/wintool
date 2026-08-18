@@ -155,6 +155,7 @@ export function OverlayScrollbar() {
         resizeRaf.current = 0
         const view = root.clientHeight
         const total = root.scrollHeight
+        syncHeaderOffset()
         if (
           lastSize.current.view !== 0 &&
           Math.abs(view - lastSize.current.view) < SIZE_EPS &&
@@ -170,6 +171,8 @@ export function OverlayScrollbar() {
     window.addEventListener('resize', onResize, { passive: true })
     const ro = new ResizeObserver(onResize)
     ro.observe(document.documentElement)
+    const headerEl = document.querySelector('.site-header')
+    if (headerEl) ro.observe(headerEl)
 
     return () => {
       window.removeEventListener('scroll', onScroll)
