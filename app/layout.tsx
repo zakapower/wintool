@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon-dark.svg', type: 'image/svg+xml' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
     ],
     apple: [{ url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
@@ -67,15 +67,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <head>
-        <link
-          rel="icon"
-          type="image/svg+xml"
-          href="/favicon-dark.svg?v=4"
-          id="site-favicon"
-        />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if('scrollRestoration'in history)history.scrollRestoration='manual';var th=localStorage.getItem('wintool-theme');if(th!=='dark'&&th!=='light'){th='dark'}document.documentElement.dataset.theme=th;var icon=document.getElementById('site-favicon');if(icon){icon.href=th==='dark'?'/favicon-dark.svg?v=4':'/favicon-light.svg?v=4'};var m=document.cookie.match(/(?:^|; )wintool-lang=(ru|en)/);if(m)document.documentElement.lang=m[1]}catch(e){document.documentElement.dataset.theme='dark'}`,
+            __html: `try{if('scrollRestoration'in history)history.scrollRestoration='manual';var th=localStorage.getItem('wintool-theme');if(th!=='dark'&&th!=='light'){th='dark'}document.documentElement.dataset.theme=th;var m=document.cookie.match(/(?:^|; )wintool-lang=(ru|en)/);if(m)document.documentElement.lang=m[1]}catch(e){document.documentElement.dataset.theme='dark'}`,
           }}
         />
       </head>

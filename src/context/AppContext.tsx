@@ -68,11 +68,6 @@ function applyTheme(theme: Theme) {
   } catch {
     /* ignore */
   }
-  const icon = document.getElementById('site-favicon') as HTMLLinkElement | null
-  if (icon) {
-    icon.href =
-      theme === 'dark' ? '/favicon-dark.svg?v=4' : '/favicon-light.svg?v=4'
-  }
   // Drop the class after paint so hover transitions keep working.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
