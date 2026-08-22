@@ -115,8 +115,18 @@ export function Header() {
               aria-label={menuOpen ? t('Закрыть меню', 'Close menu') : t('Открыть меню', 'Open menu')}
             >
               <span className="ctrl__stack" aria-hidden>
-                <Menu className="ctrl__face ctrl__face--menu" strokeWidth={2} />
-                <X className="ctrl__face ctrl__face--close" strokeWidth={2} />
+                <Menu
+                  className="ctrl__face ctrl__face--menu"
+                  size={18}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <X
+                  className="ctrl__face ctrl__face--close"
+                  size={18}
+                  strokeWidth={2}
+                  aria-hidden
+                />
               </span>
             </button>
             <div className="site-controls__tools">{toolControls}</div>
