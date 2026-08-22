@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if('scrollRestoration'in history)history.scrollRestoration='manual';var th=localStorage.getItem('wintool-theme');if(th!=='dark'&&th!=='light'){th='dark'}document.documentElement.dataset.theme=th;var m=document.cookie.match(/(?:^|; )wintool-lang=(ru|en)/);if(m)document.documentElement.lang=m[1]}catch(e){document.documentElement.dataset.theme='dark'}`,
+            __html: `(function(){try{if('scrollRestoration'in history)history.scrollRestoration='manual';var th=localStorage.getItem('wintool-theme');if(th!=='dark'&&th!=='light'){th='dark'}document.documentElement.dataset.theme=th;var m=document.cookie.match(/(?:^|; )wintool-lang=(ru|en)/);if(m)document.documentElement.lang=m[1];var coarse=window.matchMedia&&window.matchMedia('(pointer: coarse)').matches;var touch=('ontouchstart'in window)||navigator.maxTouchPoints>0;if(coarse||touch){document.documentElement.dataset.touch='1'}var mark=function(){document.documentElement.dataset.touch='1'};window.addEventListener('touchstart',mark,{once:true,passive:true});window.addEventListener('pointerdown',function(e){if(e.pointerType==='touch'||e.pointerType==='pen')mark()},{once:true,passive:true})}catch(e){document.documentElement.dataset.theme='dark'}})()`,
           }}
         />
       </head>
